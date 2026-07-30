@@ -66,10 +66,10 @@ export interface TaskListResponse {
 
 export interface ApiInfoResponse {
   api_version: string;
-  supported_codecs_song: Array<{ id: string; name: string }>;
-  supported_codecs_music_video: Array<{ id: string; name: string }>;
-  supported_cover_formats: Array<{ id: string; name: string }>;
-  supported_download_modes: Array<{ id: string; name: string }>;
+  supported_codecs_song: Array<{ value: string; label: string }>;
+  supported_codecs_music_video: Array<{ value: string; label: string }>;
+  supported_cover_formats: Array<{ value: string; label: string }>;
+  supported_download_modes: Array<{ value: string; label: string }>;
   supported_audio_conversion_formats: string[];
   supported_video_conversion_formats: string[];
 }

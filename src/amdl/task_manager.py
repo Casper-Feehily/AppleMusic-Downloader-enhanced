@@ -66,6 +66,7 @@ class DownloadTask:
         self.updated_at: str = self.created_at
         self.cancelled: bool = False
         self.websockets: list[WebSocket] = []  # WebSocket clients subscribed to this task
+        self._future: asyncio.Task | None = None
 
     def to_dict(self) -> dict:
         completed, total = self.progress
@@ -159,6 +160,8 @@ class TaskManager:
         task.status = TaskStatus.CANCELLED
         task.message = "已取消"
         task.updated_at = datetime.now(timezone.utc).isoformat()
+        if task._future and not task._future.done():
+            task._future.cancel()
         await self._broadcast_status(task)
         return True
 

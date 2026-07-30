@@ -16,12 +16,6 @@ from pathlib import Path
 if sys.platform == "win32":
     os.environ.setdefault("ANYIO_BACKEND", "asyncio")
 
-# ── Windows: hide cmd window for subprocess calls ───────────
-if sys.platform == "win32":
-    _SUBPROCESS_FLAGS = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
-else:
-    _SUBPROCESS_FLAGS = 0
-
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -36,7 +30,7 @@ from amdl.enums import (
     UploadedVideoQuality,
 )
 from amdl.task_manager import get_task_manager
-from amdl.dependency_manager import BIN_DIR, DATA_DIR
+from amdl.dependency_manager import BIN_DIR, DATA_DIR, _SUBPROCESS_FLAGS
 from amdl.dependency_manager import ensure_dependencies_async
 
 logger = logging.getLogger("amdl.server")
@@ -106,7 +100,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -464,8 +458,9 @@ async def serve_index():
 
 @app.get("/{full_path:path}", response_class=FileResponse)
 async def serve_static(full_path: str):
-    file_path = FRONTEND_OUT / full_path
-    if file_path.exists() and file_path.is_file():
+    file_path = (FRONTEND_OUT / full_path).resolve()
+    root = FRONTEND_OUT.resolve()
+    if file_path.is_relative_to(root) and file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
     index = FRONTEND_OUT / "index.html"
     if index.exists():
@@ -516,8 +511,8 @@ class PywebviewApi:
 # ═══════════════════════════════════════════════════════════════
 
 # ── single-instance lock ────────────────────────────────────
-# Prevent multiple `run_server()` / `run_desktop()` calls
-# from spawning duplicate uvicorn processes and windows.
+# Prevent multiple `run_desktop()` calls from spawning duplicate
+# uvicorn processes and windows.
 # Uses BOTH a threading lock (thread-safe) and a TCP port bind (process-safe).
 _LOCK_PORT = 51_999
 _LOCK_SOCKET: list[socket.socket | None] = [None]
@@ -527,7 +522,6 @@ _LOCK_THREAD = threading.Lock()
 def _acquire_instance_lock() -> bool:
     with _LOCK_THREAD:
         if _LOCK_SOCKET[0] is not None:
-            # Already locked in this process
             return False
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -129,6 +129,7 @@ PYI_ARGS=(
   --add-data "$ROOT_DIR/icon.icns:."
   --collect-all gamdl
   --collect-binaries gamdl
+  --collect-all yt_dlp
   --collect-all pywebview
   --hidden-import amdl.dependency_manager
   --hidden-import gamdl._ammuxer
