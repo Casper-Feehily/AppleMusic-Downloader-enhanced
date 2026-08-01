@@ -121,12 +121,20 @@ python -m pip install pyinstaller
 # ── Step 4: Run PyInstaller ────────────────────────────────────
 echo ">>> Running PyInstaller..."
 
+# PyInstaller --add-data / --add-binary separator is platform-dependent:
+#   Unix: ":"   Windows: ";"
+if [[ "$PLATFORM" == "windows" ]]; then
+  SEP=";"
+else
+  SEP=":"
+fi
+
 PYI_ARGS=(
   --name "$APP_NAME"
-  --add-data "src/fronted/out:frontend_out"
-  --add-data "$ROOT_DIR/icon.ico:."
-  --add-data "$ROOT_DIR/icon.png:."
-  --add-data "$ROOT_DIR/icon.icns:."
+  --add-data "src/fronted/out${SEP}frontend_out"
+  --add-data "${ROOT_DIR}/icon.ico${SEP}."
+  --add-data "${ROOT_DIR}/icon.png${SEP}."
+  --add-data "${ROOT_DIR}/icon.icns${SEP}."
   --collect-all gamdl
   --collect-binaries gamdl
   --collect-all yt_dlp

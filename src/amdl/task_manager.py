@@ -12,6 +12,7 @@ Architecture:
 
 from __future__ import annotations
 
+import atexit
 import asyncio
 import logging
 import threading
@@ -37,6 +38,16 @@ def get_task_manager() -> TaskManager:
     if _task_manager is None:
         _task_manager = TaskManager()
     return _task_manager
+
+
+def _atexit_cleanup() -> None:
+    """Ensure worker task is cancelled on interpreter shutdown."""
+    tm = _task_manager
+    if tm and tm._worker_task and not tm._worker_task.done():
+        try:
+            tm._worker_task.cancel()
+        except Exception:
+            pass
 
 
 # ── Task status enum ─────────────────────────────────────────
@@ -105,17 +116,26 @@ class TaskManager:
 
     def __init__(self, max_concurrent: int = 1):
         self._tasks: dict[str, DownloadTask] = {}
-        self._queue: asyncio.Queue[str] = asyncio.Queue()
-        self._semaphore = asyncio.Semaphore(max_concurrent)
+        # asyncio primitives are lazily created in start() — NOT here —
+        # to avoid "cannot create weak reference to 'NoneType' object"
+        # when __init__ runs outside an active event loop.
+        self._queue: asyncio.Queue[str] | None = None
+        self._semaphore: asyncio.Semaphore | None = None
         self._worker_task: asyncio.Task | None = None
         self._lock = threading.Lock()
+        self._max_concurrent = max_concurrent
 
     # ── Lifecycle ────────────────────────────────────────
 
     def start(self) -> None:
         """Start the background worker. Call on FastAPI startup."""
         loop = asyncio.get_running_loop()
+        # Create asyncio objects HERE (inside the running loop) so that
+        # internal weakrefs to the loop are always valid.
+        self._queue = asyncio.Queue()
+        self._semaphore = asyncio.Semaphore(self._max_concurrent)
         self._worker_task = loop.create_task(self._worker_loop())
+        atexit.register(_atexit_cleanup)
 
     async def stop(self) -> None:
         """Stop the background worker. Call on FastAPI shutdown."""
@@ -137,6 +157,7 @@ class TaskManager:
 
     async def submit(self, kwargs: dict) -> str:
         """Submit a download task and return the task_id."""
+        assert self._queue is not None, "TaskManager.start() must be called first"
         task_id = str(uuid.uuid4())
         task = DownloadTask(task_id, kwargs)
         with self._lock:
@@ -179,6 +200,7 @@ class TaskManager:
     # ── Background worker loop ───────────────────────────
 
     async def _worker_loop(self):
+        assert self._queue is not None and self._semaphore is not None
         while True:
             task_id = await self._queue.get()
             task = self.get_task(task_id)
