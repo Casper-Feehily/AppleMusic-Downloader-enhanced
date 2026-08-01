@@ -185,15 +185,18 @@ async def _download_urls_async(
         log.critical("No active subscription"); return 1
 
     # ── gamdl interface ─────────────────────────────────
+    log.info("Creating AppleMusicBaseInterface...")
     base_iface = await AppleMusicBaseInterface.create(
         apple_music_api=api, cover_format=cover_format, cover_size=cover_size,
         wvd_path=str(wvd_path) if wvd_path else None,
     )
+    log.info("AppleMusicBaseInterface created, building AppleMusicInterface...")
     iface = AppleMusicInterface(
         song=AppleMusicSongInterface(base=base_iface, synced_lyrics_format=synced_lyrics_format, codec_priority=[codec_song]),
         music_video=AppleMusicMusicVideoInterface(base=base_iface, codec_priority=[codec_music_video]),
         uploaded_video=AppleMusicUploadedVideoInterface(base=base_iface, quality=quality_post),
     )
+    log.info("AppleMusicInterface ready")
 
     # ── gamdl downloader ────────────────────────────────
     _ff_path = _resolve_bin("ffmpeg")
@@ -280,6 +283,7 @@ async def _download_urls_async(
 
     base_dl.download_stream = _download  # type: ignore[assignment]
 
+    log.info("Creating AppleMusicDownloader...")
     dl = AppleMusicDownloader(
         song=AppleMusicSongDownloader(base=base_dl),
         music_video=AppleMusicMusicVideoDownloader(base=base_dl),
@@ -287,6 +291,7 @@ async def _download_urls_async(
         overwrite=overwrite, save_cover=save_cover, save_playlist=save_playlist,
         no_synced_lyrics=no_synced_lyrics, synced_lyrics_only=synced_lyrics_only,
     )
+    log.info("AppleMusicDownloader ready, starting parse...")
 
     # ── parse → download ────────────────────────────────
     items: list = []

@@ -25,7 +25,7 @@ def _setup_logging() -> str:
     log_dir = _get_log_dir()
     log_path = os.path.join(log_dir, "amdl.log")
 
-    # Root logger → file + stderr
+    # Root logger → file only (no stderr handler to avoid conflicts)
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -34,54 +34,6 @@ def _setup_logging() -> str:
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(fmt)
     root.addHandler(fh)
-
-    sh = logging.StreamHandler(sys.stderr)
-    sh.setLevel(logging.INFO)
-    sh.setFormatter(fmt)
-    root.addHandler(sh)
-
-    # Redirect stdout/stderr to log file as fallback
-    # This catches any print() or uncaught exceptions that bypass logging
-    class _LogStream:
-        """Write to both the original stream and the log file."""
-        def __init__(self, original, log_file, label):
-            self._original = original
-            self._log_file = log_file
-            self._label = label
-        def write(self, s):
-            if s.strip():
-                try:
-                    self._log_file.write(f"[{self._label}] {s}")
-                    self._log_file.flush()
-                except Exception:
-                    pass
-            if self._original:
-                try:
-                    self._original.write(s)
-                except Exception:
-                    pass
-        def flush(self):
-            try:
-                self._log_file.flush()
-            except Exception:
-                pass
-            if self._original:
-                try:
-                    self._original.flush()
-                except Exception:
-                    pass
-        def isatty(self):
-            return False
-        @property
-        def encoding(self):
-            return "utf-8"
-
-    try:
-        log_f = open(log_path, "a", encoding="utf-8")
-        sys.stdout = _LogStream(sys.stdout, log_f, "stdout")
-        sys.stderr = _LogStream(sys.stderr, log_f, "stderr")
-    except Exception:
-        pass  # If we can't redirect, just continue
 
     return log_path
 
