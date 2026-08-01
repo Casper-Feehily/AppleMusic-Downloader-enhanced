@@ -1,3 +1,22 @@
+"""Shared utility functions."""
+
+import sys
+from pathlib import Path
+
+
+def resource_path(relative_path: str) -> str:
+    """Return the absolute path for a runtime resource.
+
+    Works both in source mode and inside a PyInstaller ``_MEIPASS`` bundle.
+    """
+    try:
+        if getattr(sys, "frozen", False):
+            base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+        else:
+            base = Path(__file__).parent.parent
+        return str(base / relative_path)
+    except Exception:
+        return relative_path
 import sys
 from pathlib import Path
 

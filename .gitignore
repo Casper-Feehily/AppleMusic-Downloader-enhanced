@@ -56,6 +56,7 @@ node_modules/
 .next/
 out/
 src/amdl_backup/
+settings.json
 
 # ── Build artifacts ────────────────────────────────────────
 *.exe

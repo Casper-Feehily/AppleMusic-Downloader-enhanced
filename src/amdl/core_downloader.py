@@ -91,7 +91,14 @@ def _resolve_bin(name: str) -> str:
 
 # ── sync entry point ────────────────────────────────────
 def download_urls(**kwargs) -> int:
-    loop = asyncio.SelectorEventLoop() if sys.platform == "win32" else asyncio.new_event_loop()
+    """Synchronous entry point for download_urls.
+
+    Creates a new event loop appropriate for the platform.
+    On Windows, ProactorEventLoop is used (supports subprocesses & async IO).
+    """
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    loop = asyncio.new_event_loop()
     try:
         return loop.run_until_complete(_download_urls_async(**kwargs))
     finally:

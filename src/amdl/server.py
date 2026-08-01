@@ -29,6 +29,7 @@ from amdl.enums import (
     SyncedLyricsFormat,
     UploadedVideoQuality,
 )
+from amdl import __version__
 from amdl.task_manager import get_task_manager
 from amdl.dependency_manager import BIN_DIR, DATA_DIR, _SUBPROCESS_FLAGS
 from amdl.dependency_manager import ensure_dependencies_async
@@ -91,15 +92,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AMDL API",
     description="Apple Music Downloader API",
-    version="2.0.0",
+    version=__version__,
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
 )
 
+# Allow overriding CORS origins via environment variable for production deployments.
+# Defaults to ["*"] for local/desktop use; set AMDL_CORS_ORIGINS for stricter control.
+_CORS_ORIGINS = os.environ.get("AMDL_CORS_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -189,7 +194,7 @@ class DownloadRequest(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "ok"
-    version: str = "2.0.0"
+    version: str = __version__
 
 
 class DependencyCheckItem(BaseModel):
@@ -336,7 +341,7 @@ async def save_settings(payload: dict):
 @app.get("/api/info", response_model=ApiInfoResponse, tags=["system"])
 async def get_api_info():
     return ApiInfoResponse(
-        api_version="2.0.0",
+        api_version=__version__,
         supported_codecs_song=[{"value": c.value, "label": c.name} for c in SongCodec],
         supported_codecs_music_video=[{"value": c.value, "label": c.name} for c in MusicVideoCodec],
         supported_cover_formats=[{"value": c.value, "label": c.name} for c in CoverFormat],
@@ -546,7 +551,6 @@ def _release_instance_lock() -> None:
 
 def _find_free_port(start: int = 8000, max_attempts: int = 20) -> int:
     """Find the first available port starting from *start*."""
-    import socket
     for port in range(start, start + max_attempts):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:

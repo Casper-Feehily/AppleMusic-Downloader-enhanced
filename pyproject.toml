@@ -5,12 +5,14 @@ requires-python = ">=3.10"
 authors = [{ name = "wenfeng110402" }]
 dependencies = [
     "gamdl>=3.8.3",
-    "click",
+    "click>=8.0",
     "colorama",
     "pillow",
-    "fastapi",
-    "uvicorn",
-    "pydantic",
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+    "pydantic>=2.0",
+    "httpx-retries>=0.6.0",
+    "certifi",
 ]
 readme = "README.md"
 dynamic = ["version"]

@@ -11,17 +11,16 @@ import logging
 import os
 import platform
 import shutil
-import ssl
 import stat
 import subprocess
 import sys
 import tarfile
 import threading
-import time
-import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Callable
+
+import httpx
 
 logger = logging.getLogger("amdl.dep_mgr")
 
@@ -72,21 +71,6 @@ def _arch() -> str:
     if m in ("amd64", "x86_64"):
         return "x64"
     return m
-
-
-def _create_ssl_context() -> ssl.SSLContext:
-    """Create an SSL context that works on macOS (Anaconda Python).
-
-    Anaconda's Python on macOS doesn't use the system Keychain by default,
-    causing CERTIFICATE_VERIFY_FAILED. This tries certifi first, then falls
-    back to the default context.
-    """
-    try:
-        import certifi
-        ctx = ssl.create_default_context(cafile=certifi.where())
-    except ImportError:
-        ctx = ssl.create_default_context()
-    return ctx
 
 
 def _os() -> str:
@@ -386,20 +370,21 @@ def _download_and_extract(dep: DependencyDef) -> _DownloadReport:
         _progress.update(dep.name, "downloading", 0)
 
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "amdl/2.0"})
-            resp = urllib.request.urlopen(req, timeout=120, context=_create_ssl_context())
-            total = int(resp.headers.get("Content-Length", 0))
-            chunk_size = 64 * 1024
-            buf = io.BytesIO()
-            downloaded = 0
-            while True:
-                chunk = resp.read(chunk_size)
-                if not chunk:
-                    break
-                buf.write(chunk)
-                downloaded += len(chunk)
-                if total:
-                    _progress.update(dep.name, "downloading", min(downloaded / total * 100, 99))
+            with httpx.Client(
+                follow_redirects=True,
+                timeout=120.0,
+                headers={"User-Agent": "amdl/2.0"},
+            ) as client:
+                with client.stream("GET", url) as resp:
+                    resp.raise_for_status()
+                    total = int(resp.headers.get("Content-Length", 0))
+                    buf = io.BytesIO()
+                    downloaded = 0
+                    for chunk in resp.iter_bytes(64 * 1024):
+                        buf.write(chunk)
+                        downloaded += len(chunk)
+                        if total:
+                            _progress.update(dep.name, "downloading", min(downloaded / total * 100, 99))
 
             _progress.update(dep.name, "extracting", 90)
             data = buf.getvalue()

@@ -62,11 +62,22 @@ class DownloadTask:
         self.error_count: int = 0
         self.message: str = ""
         self.logs: list[str] = []
+        self._logs_lock = threading.Lock()
         self.created_at: str = datetime.now(timezone.utc).isoformat()
         self.updated_at: str = self.created_at
         self.cancelled: bool = False
         self.websockets: list[WebSocket] = []  # WebSocket clients subscribed to this task
         self._future: asyncio.Task | None = None
+
+    def append_log(self, msg: str) -> None:
+        """Thread-safe log append."""
+        with self._logs_lock:
+            self.logs.append(msg)
+
+    def get_logs(self) -> list[str]:
+        """Thread-safe log read."""
+        with self._logs_lock:
+            return list(self.logs)
 
     def to_dict(self) -> dict:
         completed, total = self.progress
@@ -80,7 +91,7 @@ class DownloadTask:
             },
             "error_count": self.error_count,
             "message": self.message,
-            "logs": self.logs,
+            "logs": self.get_logs(),
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "urls": self.kwargs.get("urls", []),
@@ -222,7 +233,7 @@ class TaskManager:
             await self._broadcast_progress(task_id, completed, total)
 
         def on_log(msg: str):
-            task.logs.append(msg)
+            task.append_log(msg)
             logging.getLogger("amdl.task").info(f"[{task_id[:8]}] {msg}")
 
         from amdl.dependency_manager import DATA_DIR as _data_dir
@@ -326,7 +337,7 @@ class TaskManager:
             },
             "error_count": task.error_count,
             "message": task.message,
-            "logs": task.logs,
+            "logs": task.get_logs(),
             "updated_at": task.updated_at,
         }
         await self._send_to_subscribers(task, message)
