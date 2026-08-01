@@ -307,7 +307,7 @@ class TaskManager:
                 no_synced_lyrics=kwargs.get("no_synced_lyrics", False),
                 disable_music_video_skip=kwargs.get("disable_music_video_skip", False),
                 read_urls_as_txt=kwargs.get("read_urls_as_txt", False),
-                no_exceptions=True,
+                no_exceptions=False,
                 language=kwargs.get("language", "en-US"),
                 log_callback=on_log,
                 log_level=kwargs.get("log_level", "INFO"),
