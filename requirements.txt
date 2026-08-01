@@ -8,13 +8,3 @@ uvicorn>=0.23
 pydantic>=2.0
 certifi
 pywebview
-gamdl>=3.8.3
-httpx-retries>=0.6.0
-click
-colorama
-pillow
-fastapi
-uvicorn
-pydantic
-pywebview
-certifi

@@ -60,8 +60,8 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
   const set = (key: keyof FormState, value: string) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
-      const { urls, ...rest } = next;
-      void urls;
+      // 排除 urls 字段，不保存到后端 settings
+      const { urls: _urls, ...rest } = next;
       // 随时保存 urls 到 sessionStorage
       if (key === "urls") {
         sessionStorage.setItem("amdl_pending_urls", value);

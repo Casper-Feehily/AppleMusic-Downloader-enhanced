@@ -564,9 +564,10 @@ def _find_free_port(start: int = 8000, max_attempts: int = 20) -> int:
 def run_server(host: str = "127.0.0.1", port: int = 8000, log_level: str = "info"):
     import uvicorn
 
+    original_port = port
     port = _find_free_port(port)
-    if port != 8000:
-        logger.info("Port 8000 in use — using port %d instead", port)
+    if port != original_port:
+        logger.info("Port %d in use — using port %d instead", original_port, port)
 
     logging.basicConfig(
         level=getattr(logging, log_level.upper(), logging.INFO),

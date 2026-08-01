@@ -9,7 +9,6 @@ import shutil
 import subprocess
 import sys
 import traceback
-from http.cookiejar import MozillaCookieJar
 from pathlib import Path
 from typing import Callable
 
@@ -157,7 +156,7 @@ async def _download_urls_async(
     # ── PATH: Finder/Explorer launch has minimal env ────
     for d in ["/opt/homebrew/bin", "/usr/local/bin", str(Path.home() / ".local/bin")]:
         if d not in os.environ.get("PATH", ""):
-            os.environ["PATH"] = f"{d}:{os.environ.get('PATH', '')}"
+            os.environ["PATH"] = f"{d}{os.pathsep}{os.environ.get('PATH', '')}"
 
     # ── absolute paths ──────────────────────────────────
     temp_path = temp_path.resolve()
@@ -177,30 +176,10 @@ async def _download_urls_async(
     exclude_list = [t.strip().lower() for t in (exclude_tags or "").split(",") if t.strip()]
 
     # ── API client ──────────────────────────────────────
-    if sys.platform == "win32":
-        import httpx
-        cj = MozillaCookieJar(str(cookies_path))
-        cj.load(ignore_discard=True, ignore_expires=True)
-        mt = next((c.value for c in cj if c.name == "media-user-token" and c.domain == "music.apple.com"), None)
-        if not mt:
-            log.critical('"media-user-token" cookie not found'); return 1
-        token = await AppleMusicApi.get_token()
-        acct = await AppleMusicApi.get_account_info(token, mt)
-        sf = acct.get("meta", {}).get("subscription", {}).get("storefront")
-        if not sf:
-            log.critical("Cannot determine storefront"); return 1
-        client = httpx.AsyncClient(headers={
-            "authorization": f"Bearer {token}", "origin": "https://music.apple.com",
-            "cookie": f"media-user-token={mt}",
-        })
-        api = AppleMusicApi(client=client, token=token, storefront=sf, language=language,
-                            media_user_token=mt, account_info=acct)
-        log.info("API initialized (Windows: plain httpx)")
-    else:
-        try:
-            api = await AppleMusicApi.create_from_netscape_cookies(str(cookies_path), language=language)
-        except Exception as e:
-            log.critical(f"API init failed: {e}"); return 1
+    try:
+        api = await AppleMusicApi.create_from_netscape_cookies(str(cookies_path), language=language)
+    except Exception as e:
+        log.critical(f"API init failed: {e}"); return 1
 
     if not api.active_subscription:
         log.critical("No active subscription"); return 1
