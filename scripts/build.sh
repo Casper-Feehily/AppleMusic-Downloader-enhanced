@@ -114,9 +114,9 @@ fi
 # ── Step 3: Install Python deps + PyInstaller ──────────────────
 echo ">>> Installing Python dependencies..."
 cd "$ROOT_DIR"
-pip install --upgrade pip
-pip install -e ".[desktop]"
-pip install pyinstaller
+python -m pip install --upgrade pip
+python -m pip install -e ".[desktop]"
+python -m pip install pyinstaller
 
 # ── Step 4: Run PyInstaller ────────────────────────────────────
 echo ">>> Running PyInstaller..."
