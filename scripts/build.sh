@@ -138,9 +138,9 @@ fi
 PYI_ARGS=(
   --name "$APP_NAME"
   --add-data "src/fronted/out${SEP}frontend_out"
-  --add-data "${ROOT_DIR}/icon.ico${SEP}."
-  --add-data "${ROOT_DIR}/icon.png${SEP}."
-  --add-data "${ROOT_DIR}/icon.icns${SEP}."
+  --add-data "icon.ico${SEP}."
+  --add-data "icon.png${SEP}."
+  --add-data "icon.icns${SEP}."
   --collect-all gamdl
   --collect-binaries gamdl
   --collect-all yt_dlp
@@ -174,19 +174,30 @@ case "$PLATFORM" in
     ;;
   windows)
     PYI_ARGS+=(--windowed --onefile)
-    if [[ -f "$ROOT_DIR/icon.ico" ]]; then
-      PYI_ARGS+=(--icon "$ROOT_DIR/icon.ico")
+    if [[ -f "icon.ico" ]]; then
+      PYI_ARGS+=(--icon "icon.ico")
     fi
     ;;
   linux)
     PYI_ARGS+=(--onefile)
-    if [[ -f "$ROOT_DIR/icon.png" ]]; then
-      PYI_ARGS+=(--icon "$ROOT_DIR/icon.png")
+    if [[ -f "icon.png" ]]; then
+      PYI_ARGS+=(--icon "icon.png")
     fi
     ;;
 esac
 
+echo ">>> CWD: $(pwd)"
+echo ">>> ROOT_DIR: $ROOT_DIR"
+echo ">>> PyInstaller args:"
+for arg in "${PYI_ARGS[@]}"; do echo "      $arg"; done
+echo ">>> Entry: src/amdl/desktop_entry.py"
+echo ">>> icon.ico exists: $([ -f icon.ico ] && echo YES || echo NO)"
+echo ">>> icon.png exists: $([ -f icon.png ] && echo YES || echo NO)"
+echo ">>> icon.icns exists: $([ -f icon.icns ] && echo YES || echo NO)"
+
+set -x
 pyinstaller "${PYI_ARGS[@]}" src/amdl/desktop_entry.py
+set +x
 
 # ── Step 5: Collect output ─────────────────────────────────────
 echo ">>> Build complete! Output:"
