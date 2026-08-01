@@ -3,7 +3,7 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 COPY src/fronted/ ./
-RUN npm install && npm run build
+RUN npm ci && npm run build
 
 # ── 运行阶段 ──────────────────────────────────────────────
 FROM python:3.11-slim

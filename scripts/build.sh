@@ -11,7 +11,13 @@ if [[ -z "$PLATFORM" ]]; then
   exit 1
 fi
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# On Windows (Git Bash), pwd returns MSYS path like /d/a/... which
+# PyInstaller (Python) cannot resolve.  Use pwd -W for native paths.
+if [[ "$(uname -s)" == MINGW* || "$(uname -s)" == MSYS* ]]; then
+  ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd -W)"
+else
+  ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+fi
 APP_NAME="AppleMusicDownloader"
 
 echo "═══ Building $APP_NAME for $PLATFORM ═══"
@@ -23,7 +29,7 @@ cd "$ROOT_DIR/src/fronted"
 # Copy next.config.ts temporarily without rewrites for export build
 cp next.config.ts next.config.ts.bak
 
-npm install
+npm ci
 npm run build
 
 # Restore original next.config.ts (keeps rewrites for dev mode)
