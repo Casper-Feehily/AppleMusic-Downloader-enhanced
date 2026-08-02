@@ -4,13 +4,15 @@ description = "一个功能强大的 Apple Music 下载工具，支持下载歌�
 requires-python = ">=3.10"
 authors = [{ name = "wenfeng110402" }]
 dependencies = [
-    "gamdl",
-    "click",
+    "gamdl>=3.8.3",
+    "click>=8.0",
     "colorama",
     "pillow",
-    "fastapi",
-    "uvicorn",
-    "pydantic",
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+    "pydantic>=2.0",
+    "httpx-retries>=0.6.0",
+    "certifi",
 ]
 readme = "README.md"
 dynamic = ["version"]

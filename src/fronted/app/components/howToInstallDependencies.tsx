@@ -41,21 +41,21 @@ export default function HowToInstallDependencies({ onBack }: { onBack: () => voi
       desc: t("install.mp4box.desc"),
       platforms: [
         {
-          os: t("install.ffmpeg.win"),
+          os: t("install.mp4box.win"),
           steps: [
             t("install.mp4box.win.step1"),
             t("install.mp4box.win.step2"),
           ],
         },
         {
-          os: t("install.ffmpeg.mac"),
+          os: t("install.mp4box.mac"),
           steps: [
             t("install.mp4box.mac.step1"),
             t("install.mp4box.mac.step2"),
           ],
         },
         {
-          os: t("install.ffmpeg.linux"),
+          os: t("install.mp4box.linux"),
           steps: [
             t("install.mp4box.linux.step1"),
             t("install.mp4box.linux.step2"),
@@ -68,7 +68,7 @@ export default function HowToInstallDependencies({ onBack }: { onBack: () => voi
       desc: t("install.nm3u8dlre.desc"),
       platforms: [
         {
-          os: t("install.ffmpeg.win"),
+          os: t("install.nm3u8dlre.win"),
           steps: [
             t("install.nm3u8dlre.win.step1"),
             t("install.nm3u8dlre.win.step2"),

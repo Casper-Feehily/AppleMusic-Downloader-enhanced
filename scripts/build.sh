@@ -11,7 +11,13 @@ if [[ -z "$PLATFORM" ]]; then
   exit 1
 fi
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# On Windows (Git Bash), pwd returns MSYS path like /d/a/... which
+# PyInstaller (Python) cannot resolve.  Use pwd -W for native paths.
+if [[ "$(uname -s)" == MINGW* || "$(uname -s)" == MSYS* ]]; then
+  ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd -W)"
+else
+  ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+fi
 APP_NAME="AppleMusicDownloader"
 
 echo "═══ Building $APP_NAME for $PLATFORM ═══"
@@ -23,7 +29,7 @@ cd "$ROOT_DIR/src/fronted"
 # Copy next.config.ts temporarily without rewrites for export build
 cp next.config.ts next.config.ts.bak
 
-npm install
+npm ci
 npm run build
 
 # Restore original next.config.ts (keeps rewrites for dev mode)
@@ -32,30 +38,131 @@ mv next.config.ts.bak next.config.ts
 echo ">>> Frontend built:"
 ls -la out/
 
-# ── Step 2: Install Python deps + PyInstaller ──────────────────
+# ── Step 2: Download N_m3u8DL-RE for bundling (best-effort) ──
+echo ">>> Downloading N_m3u8DL-RE for $PLATFORM..."
+BIN_DIR="$ROOT_DIR/bin"
+mkdir -p "$BIN_DIR"
+BINARY_FLAG=""
+
+# Temporarily disable set -e so a failed download doesn't kill the build.
+# The binary will be auto-downloaded at runtime via dependency_manager.py.
+set +e
+set +o pipefail
+
+case "$PLATFORM" in
+  windows)
+    DEST="$BIN_DIR/N_m3u8DL-RE.exe"
+    if [[ ! -f "$DEST" ]]; then
+      curl -#fL "https://pub-e4955324bbd043d79465a5231bec51f6.r2.dev/N_m3u8DL-RE.exe" -o "$DEST" 2>&1
+    fi
+    if [[ -f "$DEST" ]]; then
+      BINARY_FLAG="bin/N_m3u8DL-RE.exe;bin"
+    fi
+    ;;
+  macos)
+    DEST="$BIN_DIR/N_m3u8DL-RE"
+    if [[ ! -f "$DEST" ]]; then
+      # R2 only has Windows exe — macOS goes straight to GitHub
+      GHLATEST=$(curl -sL https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest)
+      GHURL=$(echo "$GHLATEST" | grep browser_download_url | grep -E 'macos-(arm64|x64)\.tar\.gz' | head -1 | cut -d'"' -f4)
+      if [[ -n "$GHURL" ]]; then
+        curl -#fL "$GHURL" -o "/tmp/N_m3u8DL-RE.tar.gz" 2>&1
+      fi
+      if [[ -f "/tmp/N_m3u8DL-RE.tar.gz" ]]; then
+        tar xzf "/tmp/N_m3u8DL-RE.tar.gz" -C "$BIN_DIR" 2>/dev/null
+        rm -f "/tmp/N_m3u8DL-RE.tar.gz"
+        # GitHub tar is N_m3u8DL-RE/N_m3u8DL-RE (subdir) — move file up
+        if [[ -f "$BIN_DIR/N_m3u8DL-RE/N_m3u8DL-RE" ]]; then
+          mv "$BIN_DIR/N_m3u8DL-RE/N_m3u8DL-RE" "$DEST"
+          rmdir "$BIN_DIR/N_m3u8DL-RE" 2>/dev/null || true
+        fi
+      fi
+    fi
+    if [[ -f "$DEST" ]]; then
+      chmod +x "$DEST"
+      BINARY_FLAG="bin/N_m3u8DL-RE:bin"
+    fi
+    ;;
+  linux)
+    DEST="$BIN_DIR/N_m3u8DL-RE"
+    if [[ ! -f "$DEST" ]]; then
+      GHLATEST=$(curl -sL https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest)
+      GHURL=$(echo "$GHLATEST" | grep browser_download_url | grep 'linux-x64.tar.gz' | head -1 | cut -d'"' -f4)
+      if [[ -n "$GHURL" ]]; then
+        curl -#fL "$GHURL" -o "/tmp/N_m3u8DL-RE.tar.gz" 2>&1
+      fi
+      if [[ -f "/tmp/N_m3u8DL-RE.tar.gz" ]]; then
+        tar xzf "/tmp/N_m3u8DL-RE.tar.gz" -C "$BIN_DIR" 2>/dev/null
+        rm -f "/tmp/N_m3u8DL-RE.tar.gz"
+        # GitHub tar is N_m3u8DL-RE/N_m3u8DL-RE (subdir) — move file up
+        if [[ -f "$BIN_DIR/N_m3u8DL-RE/N_m3u8DL-RE" ]]; then
+          mv "$BIN_DIR/N_m3u8DL-RE/N_m3u8DL-RE" "$DEST"
+          rmdir "$BIN_DIR/N_m3u8DL-RE" 2>/dev/null || true
+        fi
+      fi
+    fi
+    if [[ -f "$DEST" ]]; then
+      chmod +x "$DEST"
+      BINARY_FLAG="bin/N_m3u8DL-RE:bin"
+    fi
+    ;;
+esac
+
+set -o pipefail
+set -e
+
+if [[ -n "$BINARY_FLAG" ]]; then
+  echo ">>> N_m3u8DL-RE bundled: $(ls -lh "$BIN_DIR"/N_m3u8DL-RE* 2>/dev/null | awk '{print $5, $NF}')"
+else
+  echo ">>> N_m3u8DL-RE skipped (will be auto-downloaded at runtime)"
+fi
+
+# ── Step 3: Install Python deps + PyInstaller ──────────────────
 echo ">>> Installing Python dependencies..."
 cd "$ROOT_DIR"
-pip install --upgrade pip
-pip install -e ".[desktop]"
-pip install pyinstaller
+python -m pip install --upgrade pip
+python -m pip install -e ".[desktop]"
+python -m pip install pyinstaller
 
-# ── Step 3: Run PyInstaller ────────────────────────────────────
+# ── Step 4: Run PyInstaller ────────────────────────────────────
 echo ">>> Running PyInstaller..."
+
+# PyInstaller --add-data / --add-binary separator is platform-dependent:
+#   Unix: ":"   Windows: ";"
+if [[ "$PLATFORM" == "windows" ]]; then
+  SEP=";"
+else
+  SEP=":"
+fi
 
 PYI_ARGS=(
   --name "$APP_NAME"
-  --add-data "src/fronted/out:frontend_out"
-  --add-data "$ROOT_DIR/icon.ico:."
-  --add-data "$ROOT_DIR/icon.png:."
-  --add-data "$ROOT_DIR/icon.icns:."
+  --add-data "src/fronted/out${SEP}frontend_out"
+  --add-data "icon.ico${SEP}."
+  --add-data "icon.png${SEP}."
+  --add-data "icon.icns${SEP}."
+  --collect-all gamdl
+  --collect-binaries gamdl
+  --collect-all yt_dlp
+  --collect-all pywebview
+  --hidden-import amdl.dependency_manager
+  --hidden-import gamdl._ammuxer
+  --hidden-import gamdl.api.apple_music
+  --hidden-import gamdl.downloader.amdecrypt
+  --hidden-import gamdl.downloader.song
   --clean
   --noconfirm
 )
 
+# Only add --add-binary if we successfully downloaded N_m3u8DL-RE
+if [[ -n "$BINARY_FLAG" ]]; then
+  PYI_ARGS+=(--add-binary "$BINARY_FLAG")
+fi
+
 # Platform-specific flags
 case "$PLATFORM" in
   macos)
-    PYI_ARGS+=(--windowed --onedir)
+    PYI_ARGS+=(--windowed --onedir --codesign-identity "-")
     # macOS code signing identity (optional, set via env)
     if [[ -n "${APPLE_SIGN_IDENTITY:-}" ]]; then
       PYI_ARGS+=(--codesign-identity "$APPLE_SIGN_IDENTITY")
@@ -67,21 +174,28 @@ case "$PLATFORM" in
     ;;
   windows)
     PYI_ARGS+=(--windowed --onefile)
-    if [[ -f "$ROOT_DIR/icon.ico" ]]; then
-      PYI_ARGS+=(--icon "$ROOT_DIR/icon.ico")
+    if [[ -f "icon.ico" ]]; then
+      PYI_ARGS+=(--icon "icon.ico")
     fi
     ;;
   linux)
     PYI_ARGS+=(--onefile)
-    if [[ -f "$ROOT_DIR/icon.png" ]]; then
-      PYI_ARGS+=(--icon "$ROOT_DIR/icon.png")
+    if [[ -f "icon.png" ]]; then
+      PYI_ARGS+=(--icon "icon.png")
     fi
     ;;
 esac
 
+# On Windows (Git Bash/MSYS), disable automatic POSIX→Windows path conversion
+# for arguments passed to native Windows programs (pyinstaller.exe).
+# Without this, MSYS mangles paths like D:/a/... into \d\a\... (invalid).
+if [[ "$(uname -s)" == MINGW* || "$(uname -s)" == MSYS* ]]; then
+  export MSYS_NO_PATHCONV=1
+fi
+
 pyinstaller "${PYI_ARGS[@]}" src/amdl/desktop_entry.py
 
-# ── Step 4: Collect output ─────────────────────────────────────
+# ── Step 5: Collect output ─────────────────────────────────────
 echo ">>> Build complete! Output:"
 DIST_DIR="$ROOT_DIR/dist"
 mkdir -p "$DIST_DIR"
@@ -100,6 +214,12 @@ case "$PLATFORM" in
         plist="$DST_BUNDLE/Contents/Info.plist"
         /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile icon.icns" "$plist" 2>/dev/null || true
       fi
+      # 清除框架签名冲突（Anaconda Python 自带 Team ID 跟 ad-hoc 冲突）
+      if [[ -d "$DST_BUNDLE/Contents/Frameworks/Python.framework" ]]; then
+        codesign --remove-signature "$DST_BUNDLE/Contents/Frameworks/Python.framework" 2>/dev/null || true
+      fi
+      # 统一 ad-hoc 重签整个 .app
+      codesign --deep --force --sign - "$DST_BUNDLE" 2>/dev/null || true
     fi
     # Create DMG for distribution
     if command -v hdiutil &>/dev/null && [[ -d "$DST_BUNDLE" ]]; then

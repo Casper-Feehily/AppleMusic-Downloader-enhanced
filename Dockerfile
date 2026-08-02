@@ -3,7 +3,7 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 COPY src/fronted/ ./
-RUN npm install && npm run build
+RUN npm ci && npm run build
 
 # ── 运行阶段 ──────────────────────────────────────────────
 FROM python:3.11-slim
@@ -25,4 +25,4 @@ COPY --from=frontend-builder /app/out/ ./src/fronted/out/
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.amdl.server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "amdl.server:app", "--host", "0.0.0.0", "--port", "8000"]

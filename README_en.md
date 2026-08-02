@@ -321,13 +321,34 @@ The desktop app is built on pywebview and works on Windows, macOS, and Linux.
 > pip install pywebview[qt]
 > ```
 
-> **🍎 macOS users**: The .app downloaded from Releases is flagged by macOS Gatekeeper. Before opening it, run:
-> ```bash
-> xattr -d com.apple.quarantine /Applications/AppleMusicDownloader.app
-> ```
-> Or right-click the .app and select "Open" (instead of double-clicking).
 
----
+
+
+
+
+
+
+
+
+
+
+
+
+> **🍎 macOS users**: Files downloaded from Releases are flagged with a quarantine attribute by macOS. Remove it before first launch:
+>
+> **.app (Desktop app)**:
+> ```bash
+> sudo xattr -cr /Applications/AppleMusicDownloader.app
+> ```
+> Or right-click → Open (instead of double-clicking), then click "Open" in the dialog.
+>
+> **CLI binary**:
+> ```bash
+> chmod +x ./AppleMusicDownloader
+> sudo xattr -cr ./AppleMusicDownloader
+> ```
+
+> **🪟 Windows users**: A console window will appear alongside the desktop app to display runtime logs. **Do not close this console window**, or the application will stop working.
 
 ## Requirements
 
@@ -351,7 +372,6 @@ The desktop app is built on pywebview and works on Windows, macOS, and Linux.
 
 ### Optional
 
-- [mp4decrypt](https://www.bento4.com/downloads/): Required for music video downloads and experimental audio codecs
 - [MP4Box](https://gpac.io/downloads/gpac-nightly-builds/): Alternative remux mode
 - [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE/releases/latest): Alternative download mode
 

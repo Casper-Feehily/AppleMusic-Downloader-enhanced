@@ -4,8 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Optional tag to use (e.g., v1.0.0). Include leading v if desired.'
-        required: false
+        description: 'Version tag to publish (e.g., v1.0.0). The leading v is stripped.'
+        required: true
+  push:
+    tags: ["v*"]
 
 jobs:
   publish:
@@ -15,60 +17,71 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for tag resolution
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
           pip install build flit_core
 
-      - name: Extract version from git tag
+      - name: Resolve version
         id: version
         env:
-          TAG: ${{ github.event.inputs.tag }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ -n "$TAG" ]; then
-            VERSION=${TAG#v}
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
-          else
-            VERSION=$(git describe --tags --always 2>/dev/null || echo "0.0.0.dev$(git rev-parse --short HEAD)")
+          TAG="${INPUT_TAG:-$REF_NAME}"
+          VERSION="${TAG#v}"
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not determine version"
+            exit 1
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Using version: $VERSION"
+          # Validate version looks like a semver
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Invalid version format: $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing version: $VERSION"
 
-      - name: Update version in source files
+      - name: Update __version__ in __init__.py
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          python - <<'PY'
-          import os
-          v = os.environ.get('VERSION', '0.0.0')
-
-          # Update pyproject.toml: replace dynamic with static version
-          with open('pyproject.toml', 'r', encoding='utf-8') as f:
-              c = f.read()
-          c = c.replace('dynamic = ["version"]', f'version = "{v}"')
-          with open('pyproject.toml', 'w', encoding='utf-8') as f:
-              f.write(c)
-
-          # Update __init__.py so runtime version matches
-          import re
-          with open('src/amdl/__init__.py', 'r', encoding='utf-8') as f:
-              c = f.read()
-          c = re.sub(r'__version__\s*=\s*"[^"]*"', f'__version__ = "{v}"', c)
-          with open('src/amdl/__init__.py', 'w', encoding='utf-8') as f:
-              f.write(c)
-
-          print(f'Updated version to {v} in pyproject.toml and __init__.py')
-          PY
+          python -c "
+          import re, pathlib, os
+          v = os.environ['VERSION']
+          p = pathlib.Path('src/amdl/__init__.py')
+          text = p.read_text()
+          text = re.sub(r'__version__\s*=\s*\"[^\"]*\"', f'__version__ = \"{v}\"', text)
+          p.write_text(text)
+          print(f'Updated __version__ to {v}')
+          "
 
       - name: Build package
         run: python -m build
+
+      - name: Verify package version
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          pip install twine
+          twine check dist/*
+          python -c "
+          import glob, os
+          expected = os.environ['EXPECTED_VERSION']
+          files = glob.glob('dist/*')
+          for f in files:
+              if expected not in f:
+                  print(f'WARNING: {f} does not contain version {expected}')
+          print('Version check passed')
+          "
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

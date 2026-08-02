@@ -322,11 +322,21 @@ python -m amdl
 > pip install pywebview[qt]
 > ```
 
-> **🍎 macOS 用户请注意**：从 Releases 下载的 .app 文件需要先解除 macOS 的隔离标记才能打开：
+> **🍎 macOS 用户请注意**：从 Releases 下载的文件会被 macOS 添上隔离标记（quarantine flag），首次运行前需要解除：
+>
+> **.app 桌面应用**：
 > ```bash
-> xattr -d com.apple.quarantine /Applications/AppleMusicDownloader.app
+> sudo xattr -cr /Applications/AppleMusicDownloader.app
 > ```
 > 或者右键 → 打开（而非双击），在弹出的对话框中点击「打开」。
+>
+> **CLI 命令行二进制**：
+> ```bash
+> chmod +x ./AppleMusicDownloader
+> sudo xattr -cr ./AppleMusicDownloader
+> ```
+
+> **🪟 Windows 用户请注意**：启动桌面应用后会同时弹出一个控制台窗口，用于显示运行日志。**请勿关闭该控制台窗口**，关闭后程序将无法正常工作。
 
 ---
 
@@ -352,7 +362,6 @@ python -m amdl
 
 ### 可选
 
-- [mp4decrypt](https://www.bento4.com/downloads/)：用于音乐视频下载和实验性音频编码
 - [MP4Box](https://gpac.io/downloads/gpac-nightly-builds/)：替代混流模式
 - [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE/releases/latest)：替代下载模式
 
