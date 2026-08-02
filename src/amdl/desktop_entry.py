@@ -9,6 +9,19 @@ import sys
 import traceback
 
 
+def _alloc_console() -> None:
+    """On Windows, allocate a visible console window for real-time log output."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.kernel32.AllocConsole()
+            # Re-wire stdout/stderr to the new console
+            sys.stdout = open("CONOUT$", "w", encoding="utf-8")
+            sys.stderr = open("CONOUT$", "w", encoding="utf-8")
+        except Exception:
+            pass
+
+
 def _get_log_dir() -> str:
     """Determine the log directory (same as exe or DATA_DIR)."""
     if getattr(sys, "frozen", False):
@@ -25,7 +38,7 @@ def _setup_logging() -> str:
     log_dir = _get_log_dir()
     log_path = os.path.join(log_dir, "amdl.log")
 
-    # Root logger → file only (no stderr handler to avoid conflicts)
+    # Root logger → file + console
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -35,10 +48,16 @@ def _setup_logging() -> str:
     fh.setFormatter(fmt)
     root.addHandler(fh)
 
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(fmt)
+    root.addHandler(ch)
+
     return log_path
 
 
 def main() -> None:
+    _alloc_console()
     log_path = _setup_logging()
     logging.getLogger("amdl").info("=== AMDL starting === log: %s", log_path)
 
