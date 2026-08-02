@@ -348,6 +348,8 @@ The desktop app is built on pywebview and works on Windows, macOS, and Linux.
 > sudo xattr -cr ./AppleMusicDownloader
 > ```
 
+> **🪟 Windows users**: A console window will appear alongside the desktop app to display runtime logs. **Do not close this console window**, or the application will stop working.
+
 ## Requirements
 
 ### Required

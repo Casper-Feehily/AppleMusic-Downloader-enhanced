@@ -336,6 +336,8 @@ python -m amdl
 > sudo xattr -cr ./AppleMusicDownloader
 > ```
 
+> **🪟 Windows 用户请注意**：启动桌面应用后会同时弹出一个控制台窗口，用于显示运行日志。**请勿关闭该控制台窗口**，关闭后程序将无法正常工作。
+
 ---
 
 ## 环境要求

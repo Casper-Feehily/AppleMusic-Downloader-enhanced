@@ -381,23 +381,6 @@ async def clean_temp():
     return {"message": f"Cleaned {count} items from temp directory"}
 
 
-@app.get("/api/logs", tags=["system"])
-async def get_logs():
-    """Return the content of amdl.log (full application log)."""
-    if getattr(sys, "frozen", False):
-        log_dir = Path(os.path.dirname(sys.executable))
-    else:
-        log_dir = DATA_DIR
-    log_path = log_dir / "amdl.log"
-    if log_path.exists():
-        try:
-            content = log_path.read_text(encoding="utf-8")
-            return {"log": content, "path": str(log_path)}
-        except Exception as e:
-            return {"log": f"Error reading log: {e}", "path": str(log_path)}
-    return {"log": "", "path": str(log_path), "message": "Log file not found"}
-
-
 # ═══════════════════════════════════════════════════════════════
 # API — Tasks
 # ═══════════════════════════════════════════════════════════════
