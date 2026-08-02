@@ -19,6 +19,7 @@ def _alloc_console() -> None:
         try:
             import ctypes
             ctypes.windll.kernel32.AllocConsole()
+            sys.stdin = open("CONIN$", "r", encoding="utf-8")
             sys.stdout = open("CONOUT$", "w", encoding="utf-8")
             sys.stderr = open("CONOUT$", "w", encoding="utf-8")
         except Exception:
