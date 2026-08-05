@@ -100,6 +100,10 @@ amdl -c /path/to/cookies.txt "https://music.apple.com/us/album/left-and-right/16
 # Download an entire album
 amdl -c /path/to/cookies.txt "https://music.apple.com/us/album/left-and-right/1630451412"
 
+# Download a complete playlist (automatically expands and downloads all available tracks)
+amdl -c /path/to/cookies.txt \
+  "https://music.apple.com/us/playlist/playlist-name/pl.1234567890abcdef1234567890abcdef"
+
 # Specify output directory
 amdl -c /path/to/cookies.txt -o "./My Music" "https://music.apple.com/..."
 

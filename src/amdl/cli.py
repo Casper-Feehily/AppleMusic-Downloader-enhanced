@@ -74,7 +74,7 @@ def main() -> None:
         return
 
     # ── new sub-command style ──────────────────────────────────
-    if args and args[0] not in ("--help", "-h", "--version") and not args[0].startswith("-"):
+    if args and args[0] not in ("--help", "-h", "--version"):
         # Could be a sub-command (server/desktop) or gamdl passthrough
         if args[0] in ("server", "desktop"):
             cli(args=args, standalone_mode=False)
@@ -104,7 +104,7 @@ AppleMusic Downloader (amdl) v{__version__}
 Usage:
   amdl server [--host HOST] [--port PORT]   Start API server
   amdl desktop                               Launch desktop app
-  amdl <gamdl args...>                       Pass through to gamdl CLI
+  amdl <gamdl args...>                       Download songs, albums or playlists
 
 Server options:
   --host HOST        Listen address (default: 127.0.0.1)
@@ -115,6 +115,6 @@ Examples:
   amdl server --host 0.0.0.0 --port 8000
   amdl desktop
   amdl -c /path/to/cookies.txt "https://music.apple.com/..."
+  amdl -c /path/to/cookies.txt "https://music.apple.com/.../playlist/.../pl..."
   amdl --help
 """
-    
