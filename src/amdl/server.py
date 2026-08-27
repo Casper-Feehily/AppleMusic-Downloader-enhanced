@@ -11,15 +11,18 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 # ── Windows: ensure anyio uses asyncio backend ──────────────
 if sys.platform == "win32":
     os.environ.setdefault("ANYIO_BACKEND", "asyncio")
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+import httpx
+from gamdl.api.wrapper import TARGET_WRAPPER_API_VERSION
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
 from amdl.enums import (
     CoverFormat,
@@ -111,13 +114,77 @@ app.add_middleware(
 )
 
 
+_LOCAL_WRAPPER_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_SECRET_SETTING_KEYS = {"apple_id", "username", "password", "code", "two_factor_code"}
+
+
+def _local_wrapper_host(value: str) -> str:
+    host = value.strip().lower().strip("[]")
+    if host not in _LOCAL_WRAPPER_HOSTS:
+        raise ValueError("Wrapper host must be localhost, 127.0.0.1, or ::1")
+    return host
+
+
+def _local_wrapper_url(value: str) -> str:
+    raw = value.strip()
+    try:
+        parsed = urlsplit(raw)
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("Invalid wrapper URL") from exc
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname not in _LOCAL_WRAPPER_HOSTS
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in ("", "/")
+        or (port is not None and not 1 <= port <= 65535)
+    ):
+        raise ValueError("Wrapper URL must be a local HTTP URL without a path")
+    return raw.rstrip("/")
+
+
+async def _wrapper_request(
+    method: str,
+    wrapper_url: str,
+    path: str,
+    *,
+    payload: dict | None = None,
+) -> httpx.Response:
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0)) as client:
+            return await client.request(method, f"{wrapper_url}{path}", json=payload)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail="Wrapper is not reachable") from exc
+
+
+def _wrapper_status(me: dict) -> dict:
+    auth = me.get("auth") if isinstance(me.get("auth"), dict) else {}
+    runtime = me.get("runtime") if isinstance(me.get("runtime"), dict) else {}
+    auth_state = auth.get("state", "unknown")
+    return {
+        "reachable": True,
+        "version": me.get("version"),
+        "compatible": me.get("version") == TARGET_WRAPPER_API_VERSION,
+        "authenticated": auth_state == "authenticated",
+        "auth_state": auth_state,
+        "playback_ready": bool(runtime.get("playback_ready")),
+    }
+
+
 # ═══════════════════════════════════════════════════════════════
 # Models
 # ═══════════════════════════════════════════════════════════════
 
 class DownloadRequest(BaseModel):
     urls: list[str] = Field(..., min_length=1)
-    cookies_path: str = Field(...)
+    cookies_path: str | None = Field(default=None)
+    use_wrapper: bool = Field(default=False)
+    wrapper_url: str = Field(default="http://127.0.0.1")
+    wrapper_decrypt_host: str = Field(default="127.0.0.1")
+    wrapper_decrypt_port: int = Field(default=10020, ge=1, le=65535)
     output_path: str = Field(default="./Apple Music")
     temp_path: str = Field(default="./temp")
     wvd_path: str | None = Field(default=None)
@@ -152,18 +219,33 @@ class DownloadRequest(BaseModel):
     language: str = Field(default="en-US")
     log_level: str = Field(default="INFO")
 
-    @field_validator("cookies_path")
+    @field_validator("wrapper_url")
     @classmethod
-    def _validate_cookies(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("cookies_path must not be empty")
-        v = v.strip()
-        p = Path(v)
-        if not p.exists():
-            raise ValueError(f"Cookies file not found: {v}")
-        if not p.is_file():
-            raise ValueError(f"Not a file: {v}")
-        return v
+    def _validate_wrapper_url(cls, v: str) -> str:
+        return _local_wrapper_url(v)
+
+    @field_validator("wrapper_decrypt_host")
+    @classmethod
+    def _validate_wrapper_decrypt_host(cls, v: str) -> str:
+        return _local_wrapper_host(v)
+
+    @model_validator(mode="after")
+    def _validate_auth_mode(self):
+        if self.use_wrapper:
+            if self.codec_song == SongCodec.ALAC:
+                self.audio_format = None
+            return self
+        if self.codec_song == SongCodec.ALAC:
+            raise ValueError("ALAC requires wrapper mode")
+        if not self.cookies_path or not self.cookies_path.strip():
+            raise ValueError("cookies_path must not be empty in cookies mode")
+        self.cookies_path = self.cookies_path.strip()
+        path = Path(self.cookies_path)
+        if not path.exists():
+            raise ValueError(f"Cookies file not found: {self.cookies_path}")
+        if not path.is_file():
+            raise ValueError(f"Not a file: {self.cookies_path}")
+        return self
 
     @field_validator("log_level")
     @classmethod
@@ -178,7 +260,7 @@ class DownloadRequest(BaseModel):
     def _validate_audio_fmt(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        if v.lower() not in {"mp3", "flac", "wav", "aac", "m4a", "ogg", "wma", "alac"}:
+        if v.lower() not in {"mp3", "flac", "wav", "aac", "m4a", "ogg", "wma"}:
             raise ValueError(f"Unsupported format: {v}")
         return v.lower()
 
@@ -207,6 +289,40 @@ class DependencyCheckItem(BaseModel):
 class DependencyCheckResponse(BaseModel):
     all_ok: bool
     dependencies: list[DependencyCheckItem]
+
+
+class WrapperConnection(BaseModel):
+    wrapper_url: str = Field(default="http://127.0.0.1")
+
+    @field_validator("wrapper_url")
+    @classmethod
+    def _validate_wrapper_url(cls, v: str) -> str:
+        return _local_wrapper_url(v)
+
+
+class WrapperLoginRequest(WrapperConnection):
+    apple_id: str = Field(min_length=1)
+    password: SecretStr = Field(min_length=1)
+
+    @field_validator("apple_id")
+    @classmethod
+    def _validate_apple_id(cls, v: str) -> str:
+        value = v.strip()
+        if not value:
+            raise ValueError("Apple ID must not be empty")
+        return value
+
+
+class WrapperTwoFactorRequest(WrapperConnection):
+    code: SecretStr
+
+    @model_validator(mode="after")
+    def _validate_code(self):
+        code = self.code.get_secret_value().strip()
+        if len(code) != 6 or not code.isdigit():
+            raise ValueError("2FA code must contain exactly 6 digits")
+        self.code = SecretStr(code)
+        return self
 
 
 class TaskSubmitResponse(BaseModel):
@@ -317,7 +433,10 @@ async def health_check():
 async def get_settings():
     if SETTINGS_FILE.exists():
         try:
-            return JSONResponse(content=json.loads(SETTINGS_FILE.read_text(encoding="utf-8")))
+            settings = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+            if settings.get("audio_format") == "alac" or settings.get("codec_song") == "alac":
+                settings["audio_format"] = ""
+            return JSONResponse(content=settings)
         except Exception:
             pass
     return JSONResponse(content={})
@@ -325,6 +444,15 @@ async def get_settings():
 
 @app.post("/api/settings", tags=["system"])
 async def save_settings(payload: dict):
+    secret_keys = {
+        key for key in payload
+        if key.lower() in _SECRET_SETTING_KEYS
+        or key.lower().endswith(("_password", "_2fa", "_2fa_code", "_apple_id", "_username"))
+    }
+    if secret_keys:
+        raise HTTPException(status_code=422, detail="Credentials must not be stored in settings")
+    if payload.get("audio_format") == "alac":
+        payload["audio_format"] = ""
     # 读取已有设置，做合并而非覆盖
     existing: dict = {}
     if SETTINGS_FILE.exists():
@@ -333,6 +461,8 @@ async def save_settings(payload: dict):
         except Exception:
             pass
     existing.update(payload)
+    if existing.get("codec_song") == "alac":
+        existing["audio_format"] = ""
     SETTINGS_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
     return JSONResponse(content={"status": "ok"})
 
@@ -346,7 +476,7 @@ async def get_api_info():
         supported_codecs_music_video=[{"value": c.value, "label": c.name} for c in MusicVideoCodec],
         supported_cover_formats=[{"value": c.value, "label": c.name} for c in CoverFormat],
         supported_download_modes=[{"value": c.value, "label": c.name} for c in DownloadMode],
-        supported_audio_conversion_formats=["mp3", "flac", "wav", "aac", "m4a", "ogg", "alac"],
+        supported_audio_conversion_formats=["mp3", "flac", "wav", "aac", "m4a", "ogg"],
         supported_video_conversion_formats=["mp4", "mov", "mkv", "avi", "webm"],
     )
 
@@ -366,6 +496,79 @@ async def dep_download_progress():
     """Get the progress of auto-downloading missing dependencies."""
     from amdl.dependency_manager import get_progress as _get_progress
     return {"dependencies": _get_progress()}
+
+
+# ═══════════════════════════════════════════════════════════════
+# API — Wrapper v2
+# ═══════════════════════════════════════════════════════════════
+
+@app.get("/api/wrapper/status", tags=["wrapper"])
+async def wrapper_status(
+    wrapper_url: str = Query(default="http://127.0.0.1"),
+):
+    try:
+        wrapper_url = _local_wrapper_url(wrapper_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    response = await _wrapper_request("GET", wrapper_url, "/me")
+    if response.is_error:
+        raise HTTPException(status_code=502, detail="Wrapper returned an error")
+    try:
+        me = response.json()
+        if not isinstance(me, dict):
+            raise ValueError("Expected an object")
+        return _wrapper_status(me)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail="Wrapper returned invalid JSON") from exc
+
+
+@app.post("/api/wrapper/login", tags=["wrapper"])
+async def wrapper_login(request: WrapperLoginRequest):
+    response = await _wrapper_request(
+        "POST",
+        request.wrapper_url,
+        "/login",
+        payload={
+            "username": request.apple_id.strip(),
+            "password": request.password.get_secret_value(),
+        },
+    )
+    if response.status_code == 200:
+        return {"state": "authenticated"}
+    if response.status_code == 202:
+        return JSONResponse(status_code=202, content={"state": "requires_2fa"})
+    if response.status_code == 401:
+        raise HTTPException(status_code=401, detail="Wrapper login failed")
+    raise HTTPException(status_code=502, detail="Wrapper returned an error")
+
+
+@app.post("/api/wrapper/login/2fa", tags=["wrapper"])
+async def wrapper_login_2fa(request: WrapperTwoFactorRequest):
+    response = await _wrapper_request(
+        "POST",
+        request.wrapper_url,
+        "/login/2fa",
+        payload={"code": request.code.get_secret_value()},
+    )
+    if response.is_success:
+        return {"state": "authenticated"}
+    if response.status_code == 401:
+        raise HTTPException(status_code=401, detail="Wrapper 2FA login failed")
+    raise HTTPException(status_code=502, detail="Wrapper returned an error")
+
+
+@app.delete("/api/wrapper/login", tags=["wrapper"])
+async def wrapper_logout(
+    wrapper_url: str = Query(default="http://127.0.0.1"),
+):
+    try:
+        wrapper_url = _local_wrapper_url(wrapper_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    response = await _wrapper_request("DELETE", wrapper_url, "/login")
+    if response.is_error:
+        raise HTTPException(status_code=502, detail="Wrapper returned an error")
+    return {"state": "logged_out"}
 
 
 @app.delete("/api/temp", tags=["system"])

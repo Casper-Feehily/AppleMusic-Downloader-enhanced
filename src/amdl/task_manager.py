@@ -263,7 +263,7 @@ class TaskManager:
 
         for key in ("cookies_path", "output_path", "temp_path"):
             val = kwargs.get(key)
-            if isinstance(val, str):
+            if isinstance(val, str) and val:
                 p = Path(val)
                 kwargs[key] = p if p.is_absolute() else _data_dir / val
 
@@ -275,7 +275,11 @@ class TaskManager:
         try:
             err_count = await _download_urls_async(
                 urls=kwargs.get("urls", []),
-                cookies_path=kwargs["cookies_path"],
+                cookies_path=kwargs.get("cookies_path"),
+                use_wrapper=kwargs.get("use_wrapper", False),
+                wrapper_url=kwargs.get("wrapper_url", "http://127.0.0.1"),
+                wrapper_decrypt_host=kwargs.get("wrapper_decrypt_host", "127.0.0.1"),
+                wrapper_decrypt_port=kwargs.get("wrapper_decrypt_port", 10020),
                 output_path=kwargs.get("output_path", Path("./Apple Music")),
                 temp_path=kwargs.get("temp_path", Path("./temp")),
                 wvd_path=kwargs.get("wvd_path"),

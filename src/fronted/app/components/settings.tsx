@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { DEFAULT_FORM } from "../service";
+import { DEFAULT_FORM, getWrapperStatus } from "../service";
 import { useI18n } from "../i18n";
-import type { FormState, DependencyCheckItem, DependencyCheckResponse } from "../service";
+import type { FormState, DependencyCheckItem, DependencyCheckResponse, WrapperStatus } from "../service";
 
 function loadSettings(): FormState {
   if (typeof window === "undefined") return DEFAULT_FORM;
@@ -33,6 +33,13 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
   const [deps, setDeps] = useState<DependencyCheckItem[]>([]);
   const [checking, setChecking] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<Record<string, DepDownloadStatus>>({});
+  const [wrapperStatus, setWrapperStatus] = useState<WrapperStatus | null>(null);
+  const [appleId, setAppleId] = useState("");
+  const [password, setPassword] = useState("");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── auto-check deps & poll download progress ──────────
@@ -109,6 +116,99 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
   const set = (key: keyof FormState, value: string | boolean | number) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const setAuthMode = (useWrapper: boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      use_wrapper: useWrapper,
+      codec_song: !useWrapper && prev.codec_song === "alac" ? "aac-web" : prev.codec_song,
+    }));
+  };
+
+  const checkWrapper = useCallback(async () => {
+    try {
+      setWrapperStatus(await getWrapperStatus(form.wrapper_url));
+      setAuthError("");
+    } catch {
+      setWrapperStatus(null);
+      setAuthError(t("settings.wrapper_unreachable"));
+    }
+  }, [form.wrapper_url, t]);
+
+  const loginWrapper = async () => {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const response = await fetch("/api/wrapper/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wrapper_url: form.wrapper_url, apple_id: appleId, password }),
+      });
+      if (response.status === 202) {
+        setNeedsTwoFactor(true);
+      } else if (!response.ok) {
+        throw new Error();
+      } else {
+        setNeedsTwoFactor(false);
+        await checkWrapper();
+      }
+    } catch {
+      setAuthError(t("settings.wrapper_login_failed"));
+    } finally {
+      setAppleId("");
+      setPassword("");
+      setAuthBusy(false);
+    }
+  };
+
+  const submitTwoFactor = async () => {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const response = await fetch("/api/wrapper/login/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wrapper_url: form.wrapper_url, code: twoFactorCode }),
+      });
+      if (!response.ok) throw new Error();
+      setNeedsTwoFactor(false);
+      await checkWrapper();
+    } catch {
+      setAuthError(t("settings.wrapper_2fa_failed"));
+    } finally {
+      setTwoFactorCode("");
+      setAuthBusy(false);
+    }
+  };
+
+  const logoutWrapper = async () => {
+    setAuthBusy(true);
+    try {
+      const params = new URLSearchParams({ wrapper_url: form.wrapper_url });
+      const response = await fetch(`/api/wrapper/login?${params.toString()}`, { method: "DELETE" });
+      if (!response.ok) throw new Error();
+      setWrapperStatus(null);
+      setNeedsTwoFactor(false);
+      await checkWrapper();
+    } catch {
+      setAuthError(t("settings.wrapper_logout_failed"));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!loaded || !form.use_wrapper) return;
+    getWrapperStatus(form.wrapper_url)
+      .then((status) => {
+        setWrapperStatus(status);
+        setAuthError("");
+      })
+      .catch(() => {
+        setWrapperStatus(null);
+        setAuthError(t("settings.wrapper_unreachable"));
+      });
+  }, [loaded, form.use_wrapper, form.wrapper_url, t]);
+
   // ── download progress states ──────────────────────────
   const activeDownloads = Object.entries(downloadProgress).filter(
     ([, v]) => v.status === "downloading" || v.status === "extracting" || v.status === "winget"
@@ -181,12 +281,63 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
           </section>
         )}
 
+        {/* ══════ Authentication ══════ */}
+        <Section title={t("settings.authentication")}>
+          <Row label={t("settings.auth_mode")}>
+            <select className="input" value={form.use_wrapper ? "wrapper" : "cookies"} onChange={(e) => setAuthMode(e.target.value === "wrapper")}>
+              <option value="wrapper">Wrapper v2</option>
+              <option value="cookies">Cookies</option>
+            </select>
+          </Row>
+          {form.use_wrapper ? (
+            <div className="border-t px-4 py-3" style={{ borderColor: "var(--card-border)" }}>
+              <label className="mb-1 block text-[10.5px]" style={{ color: "var(--text-dim)" }}>{t("settings.wrapper_url")}</label>
+              <div className="flex gap-2">
+                <input className="input" value={form.wrapper_url} onChange={(e) => set("wrapper_url", e.target.value)} />
+                <button className="btn-secondary shrink-0 px-2.5 text-[10.5px]" disabled={authBusy} onClick={() => void checkWrapper()}>{t("settings.check")}</button>
+              </div>
+              <p className="mt-2 text-[10.5px]" style={{ color: wrapperStatus?.compatible && wrapperStatus.authenticated && wrapperStatus.playback_ready ? "#22c55e" : "var(--text-muted)" }}>
+                {wrapperStatus && !wrapperStatus.compatible
+                  ? t("settings.wrapper_incompatible")
+                  : wrapperStatus?.authenticated && wrapperStatus.playback_ready
+                  ? t("settings.wrapper_ready")
+                  : wrapperStatus?.authenticated
+                    ? t("settings.wrapper_not_ready")
+                    : t("settings.wrapper_logged_out")}
+              </p>
+              {!wrapperStatus?.authenticated && !needsTwoFactor && (
+                <div className="mt-3 space-y-2">
+                  <input className="input" type="email" autoComplete="username" placeholder={t("settings.apple_id")} value={appleId} onChange={(e) => setAppleId(e.target.value)} />
+                  <input className="input" type="password" autoComplete="current-password" placeholder={t("settings.password")} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <button className="btn-primary w-full py-2 text-[11px]" disabled={authBusy || !appleId.trim() || !password} onClick={() => void loginWrapper()}>{t("settings.wrapper_login")}</button>
+                </div>
+              )}
+              {needsTwoFactor && (
+                <div className="mt-3 flex gap-2">
+                  <input className="input" inputMode="numeric" maxLength={6} autoComplete="one-time-code" placeholder={t("settings.two_factor_code")} value={twoFactorCode} onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ""))} />
+                  <button className="btn-primary shrink-0 px-3 text-[11px]" disabled={authBusy || twoFactorCode.length !== 6} onClick={() => void submitTwoFactor()}>{t("settings.confirm")}</button>
+                </div>
+              )}
+              {wrapperStatus?.authenticated && (
+                <button className="btn-secondary mt-3 px-2.5 py-1 text-[10.5px]" disabled={authBusy} onClick={() => void logoutWrapper()}>{t("settings.wrapper_logout")}</button>
+              )}
+              {authError && <p className="mt-2 text-[10.5px]" style={{ color: "#ef4444" }}>{authError}</p>}
+              <p className="mt-2 text-[9.5px]" style={{ color: "var(--text-muted)" }}>{t("settings.credentials_notice")}</p>
+            </div>
+          ) : (
+            <div className="border-t px-4 py-3" style={{ borderColor: "var(--card-border)" }}>
+              <input className="input" value={form.cookies_path} placeholder={t("settings.cookies_path")} onChange={(e) => set("cookies_path", e.target.value)} />
+            </div>
+          )}
+        </Section>
+
         {/* ══════ Codec & Format ══════ */}
         <Section title="Codec & Format">
           <Row label={t("settings.codec")}>
-            <select className="input" value={form.codec_song} onChange={(e) => set("codec_song", e.target.value)}>
+            <select className="input" value={form.codec_song} onChange={(e) => setForm((prev) => ({ ...prev, codec_song: e.target.value, audio_format: e.target.value === "alac" ? "" : prev.audio_format }))}>
               <option value="aac-web">AAC (web)</option>
-              <option value="atmos">Atmos</option>
+              <option value="atmos">Dolby Atmos</option>
+              <option value="alac" disabled={!form.use_wrapper}>{t("download.alac")}</option>
             </select>
           </Row>
           <Row label={t("settings.mode")}>
@@ -266,14 +417,21 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
               checking={checking === "N_m3u8DL-RE"}
               onCheck={() => checkDep("N_m3u8DL-RE", form.nm3u8dlre_path)}
             />
-            <DepRow
-              label={t("settings.cookies_path")}
-              value={form.cookies_path}
-              onChange={(v) => set("cookies_path", v)}
-              dep={null}
-              checking={false}
-              onCheck={() => {}}
-            />
+            {form.use_wrapper && (
+              <>
+                <DepRow
+                  label={t("settings.wrapper_decrypt_host")}
+                  value={form.wrapper_decrypt_host}
+                  onChange={(v) => set("wrapper_decrypt_host", v)}
+                  dep={null}
+                  checking={false}
+                  onCheck={() => {}}
+                />
+                <Row label={t("settings.wrapper_decrypt_port")}>
+                  <input className="input" type="number" min={1} max={65535} value={form.wrapper_decrypt_port} onChange={(e) => set("wrapper_decrypt_port", Number(e.target.value))} />
+                </Row>
+              </>
+            )}
             <DepRow
               label={t("settings.output_path")}
               value={form.output_path}

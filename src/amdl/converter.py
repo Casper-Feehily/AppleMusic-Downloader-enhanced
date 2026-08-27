@@ -21,7 +21,6 @@ _AUDIO_PRESETS: dict[str, tuple[list[str], list[str]]] = {
     "m4a":  (["-c:a", "aac"],        ["-b:a", "256k"]),
     "ogg":  (["-c:a", "libvorbis"],  ["-q:a", "5"]),
     "wma":  (["-c:a", "wmav2"],      ["-b:a", "192k"]),
-    "alac": (["-c:a", "alac"],       []),
 }
 
 # ── Video codec presets ────────────────────────────────────────
