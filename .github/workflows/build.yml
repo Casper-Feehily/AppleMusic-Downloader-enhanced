@@ -2,7 +2,7 @@
 # AppleMusic Downloader — Cross-platform Build & Release
 #
 # Triggers:
-#   - push / pull_request to main
+#   - push / pull_request to master
 #   - pushing a tag v*  (e.g. v2.0.0) → creates a GitHub Release
 # ─────────────────────────────────────────────────────────────────
 
@@ -11,10 +11,10 @@ name: Build & Release
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [master]
     tags: ["v*"]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 env:
   PYTHON_VERSION: "3.12"
@@ -58,7 +58,7 @@ jobs:
         run: npx tsc --noEmit
 
   # ─────────────────────────────────────────────────────────────
-  # Build matrix: Linux · macOS · Windows
+  # Build matrix: macOS · Windows
   # ─────────────────────────────────────────────────────────────
   build:
     name: "Build (${{ matrix.os }})"
@@ -68,15 +68,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: linux
-            runner: ubuntu-latest
-            artifact: AppleMusicDownloader-linux-x64
           - os: macos
             runner: macos-14
-            artifact: AppleMusicDownloader-macos-arm64.dmg
+            artifact: AppleMusicDownloader-macos-arm64
+            artifact_path: dist/AppleMusicDownloader-macos-arm64.dmg
           - os: windows
             runner: windows-latest
-            artifact: AppleMusicDownloader-windows-x64.exe
+            artifact: AppleMusicDownloader-windows-x64
+            artifact_path: dist/AppleMusicDownloader-Setup-windows-x64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -99,11 +98,21 @@ jobs:
           BUILD_OS: ${{ matrix.os }}
         run: bash scripts/build.sh "$BUILD_OS"
 
+      - name: Build Windows installer
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path src/amdl/__init__.py -Pattern '__version__\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          if ('${{ github.ref_type }}' -eq 'tag') {
+            $version = '${{ github.ref_name }}'.TrimStart('v')
+          }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" scripts/windows-installer.iss
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/${{ matrix.artifact }}*
+          path: ${{ matrix.artifact_path }}
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────

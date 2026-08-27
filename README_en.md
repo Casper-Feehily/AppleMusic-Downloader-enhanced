@@ -1,10 +1,10 @@
 # AppleMusic Downloader
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Casper-Feehily/AppleMusic-Downloader/total?style=social&logo=GitHub)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Casper-Feehily/AppleMusic-Downloader-enhanced/total?style=social&logo=GitHub)
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/Casper-Feehily/AppleMusic-Downloader)
-![GitHub License](https://img.shields.io/github/license/Casper-Feehily/AppleMusic-Downloader?style=social)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced)
+![GitHub License](https://img.shields.io/github/license/Casper-Feehily/AppleMusic-Downloader-enhanced?style=social)
 
 - [Chinese README](README.md)
 
@@ -33,7 +33,7 @@ This project is based on [wenfeng110402/AppleMusic-Downloader](https://github.co
 
 - [Installation](#installation)
   - [Method 1: pip install (recommended)](#method-1-pip-install-recommended)
-  - [Method 2: Desktop installer](#method-2-desktop-installer-windows-only)
+  - [Method 2: Desktop installers](#method-2-desktop-installers)
   - [Method 3: From source](#method-3-from-source)
 - [Download ALAC Lossless: Quick Start](#download-alac-lossless-quick-start)
   - [Get the Correct Apple Music APK](#get-the-correct-apple-music-apk)
@@ -69,16 +69,17 @@ For desktop GUI mode, install with desktop dependencies:
 pip install "applemusic-dl[desktop]"
 ```
 
-### Method 2: Desktop installer (Windows only)
+### Method 2: Desktop installers
 
-1. Download the latest installer from the [Releases](https://github.com/Casper-Feehily/AppleMusic-Downloader/releases) page
-2. Run `AppleMusicDownloader_Setup.exe` and follow the prompts
-3. Find "Apple Music Downloader" in your Start menu
+Download the installer for your system from the [Releases](https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases) page:
+
+- Windows: run `AppleMusicDownloader-Setup-windows-x64.exe`
+- Apple Silicon Mac: open `AppleMusicDownloader-macos-arm64.dmg` and drag the app into Applications
 
 ### Method 3: From source
 
 ```bash
-git clone https://github.com/Casper-Feehily/AppleMusic-Downloader.git
+git clone https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced.git
 cd AppleMusic-Downloader
 pip install -e ".[desktop]"
 ```

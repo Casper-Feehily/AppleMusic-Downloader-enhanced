@@ -1,10 +1,10 @@
 # AppleMusic Downloader
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Casper-Feehily/AppleMusic-Downloader/total?style=social&logo=GitHub)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Casper-Feehily/AppleMusic-Downloader-enhanced/total?style=social&logo=GitHub)
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
-[![Platform](<https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey>)](https://github.com/Casper-Feehily/AppleMusic-Downloader)
-![GitHub License](https://img.shields.io/github/license/Casper-Feehily/AppleMusic-Downloader?style=social)
+[![Platform](<https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey>)](https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced)
+![GitHub License](https://img.shields.io/github/license/Casper-Feehily/AppleMusic-Downloader-enhanced?style=social)
 
 - [English README](README_en.md)
 
@@ -33,7 +33,7 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 
 - [安装方式](#安装方式)
   - [方式一：pip 安装（推荐）](#方式一pip-安装推荐)
-  - [方式二：桌面安装程序](#方式二桌面安装程序仅限-windows)
+  - [方式二：桌面安装包](#方式二桌面安装包)
   - [方式三：从源码运行](#方式三从源码运行)
 - [下载 ALAC 无损：快速开始](#下载-alac-无损快速开始)
   - [准备正确的 Apple Music APK](#准备正确的-apple-music-apk)
@@ -69,16 +69,17 @@ amdl --help
 pip install "applemusic-dl[desktop]"
 ```
 
-### 方式二：桌面安装程序（仅限 Windows）
+### 方式二：桌面安装包
 
-1. 从 [Releases](https://github.com/Casper-Feehily/AppleMusic-Downloader/releases) 页面下载最新安装程序
-2. 运行 `AppleMusicDownloader_Setup.exe` 按提示完成安装
-3. 在开始菜单中找到 "Apple Music Downloader"
+从 [Releases](https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases) 页面下载对应系统的安装包：
+
+- Windows：运行 `AppleMusicDownloader-Setup-windows-x64.exe`
+- Apple Silicon Mac：打开 `AppleMusicDownloader-macos-arm64.dmg`，将应用拖入“应用程序”
 
 ### 方式三：从源码运行
 
 ```bash
-git clone https://github.com/Casper-Feehily/AppleMusic-Downloader.git
+git clone https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced.git
 cd AppleMusic-Downloader
 pip install -e ".[desktop]"
 ```
