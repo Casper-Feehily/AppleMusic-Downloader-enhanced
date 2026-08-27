@@ -35,6 +35,7 @@ This project uses code from [gamdl (Glomatico's Apple Music Downloader)](https:/
   - [Method 2: Desktop installer](#method-2-desktop-installer-windows-only)
   - [Method 3: From source](#method-3-from-source)
 - [CLI Usage](#cli-usage)
+- [Wrapper v2 and ALAC](#wrapper-v2-and-alac)
 - [API Server Deployment](#api-server-deployment)
   - [Starting the API Server](#starting-the-api-server)
   - [API Endpoints](#api-endpoints)
@@ -107,9 +108,28 @@ amdl -c /path/to/cookies.txt \
 # Specify output directory
 amdl -c /path/to/cookies.txt -o "./My Music" "https://music.apple.com/..."
 
-# Specify codec and audio format
-amdl -c /path/to/cookies.txt --codec-song aac-256k --audio-format mp3 "https://music.apple.com/..."
+# Specify source codec priority
+amdl -c /path/to/cookies.txt --song-codec-priority aac-web "https://music.apple.com/..."
 ```
+
+---
+
+## Wrapper v2 and ALAC
+
+The desktop app defaults to a user-managed local [wrapper-v2](https://github.com/glomatico/wrapper-v2), with Apple ID and 2FA login in Settings. This project does not install or start wrapper, nor distribute an Apple Music APK or native libraries. Wrapper HTTP and decrypt addresses are restricted to `localhost`, `127.0.0.1`, or `::1`. Passwords and 2FA codes are used for one request only and are never written to settings or task logs.
+
+The CLI passes the gamdl 3.8.5 wrapper options through unchanged:
+
+```bash
+amdl --use-wrapper \
+  --wrapper-url http://127.0.0.1 \
+  --wrapper-decrypt-host 127.0.0.1 \
+  --wrapper-decrypt-port 10020 \
+  --song-codec-priority alac,aac-web \
+  "https://music.apple.com/..."
+```
+
+“ALAC Lossless” selects the source codec served by Apple Music. A successful ALAC download keeps gamdl's `.m4a` container without post-conversion; unavailable ALAC falls back to AAC and records the actual codec in the task log. FLAC, MP3, and the other “post-download conversion” choices only re-encode downloaded audio and cannot make AAC truly lossless. Cookies mode remains available for AAC but cannot request ALAC. See [gamdl's wrapper dependency notes](https://github.com/glomatico/gamdl/blob/3.8.4/README.md#optional-dependencies) for details.
 
 ---
 
@@ -360,7 +380,7 @@ The desktop app is built on pywebview and works on Windows, macOS, and Linux.
 
 - Python 3.10 or higher
 - A valid Apple Music subscription
-- Netscape-format cookies file
+- A local wrapper-v2 or a Netscape-format cookies file
 - FFmpeg
 
 **Obtaining a cookies file:**

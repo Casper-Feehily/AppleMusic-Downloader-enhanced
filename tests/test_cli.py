@@ -19,6 +19,14 @@ class CliRoutingTests(unittest.TestCase):
             [PLAYLIST_URL],
             ["-c", "/tmp/cookies.txt", PLAYLIST_URL],
             ["-c", "/tmp/cookies.txt", "-o", "/tmp/music", PLAYLIST_URL],
+            [
+                "--use-wrapper",
+                "--wrapper-url", "http://127.0.0.1:8080",
+                "--wrapper-decrypt-host", "localhost",
+                "--wrapper-decrypt-port", "11020",
+                "--song-codec-priority", "alac,aac-web",
+                PLAYLIST_URL,
+            ],
         ]
 
         for args in invocations:

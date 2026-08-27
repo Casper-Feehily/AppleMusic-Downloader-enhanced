@@ -7,6 +7,10 @@ import { useState, useCallback } from "react";
 export interface FormState {
   urls: string;
   cookies_path: string;
+  use_wrapper: boolean;
+  wrapper_url: string;
+  wrapper_decrypt_host: string;
+  wrapper_decrypt_port: number;
   output_path: string;
   temp_path: string;
   ffmpeg_path: string;
@@ -53,6 +57,15 @@ export interface DependencyCheckResponse {
   dependencies: DependencyCheckItem[];
 }
 
+export interface WrapperStatus {
+  reachable: boolean;
+  version?: string;
+  compatible: boolean;
+  authenticated: boolean;
+  auth_state: string;
+  playback_ready: boolean;
+}
+
 export interface TaskSubmitResponse {
   task_id: string;
   status: string;
@@ -79,6 +92,10 @@ export interface ApiInfoResponse {
 export const DEFAULT_FORM: FormState = {
   urls: "",
   cookies_path: "",
+  use_wrapper: true,
+  wrapper_url: "http://127.0.0.1",
+  wrapper_decrypt_host: "127.0.0.1",
+  wrapper_decrypt_port: 10020,
   output_path: "./Apple Music",
   temp_path: "./temp",
   ffmpeg_path: "ffmpeg",
@@ -147,15 +164,19 @@ export function useBackendStatus() {
 export function useSubmitTask(onSuccess?: () => void) {
   return async (form: FormState) => {
     const urlList = form.urls.split("\n").map((s) => s.trim()).filter(Boolean);
-    if (urlList.length === 0) return;
-    if (!form.cookies_path.trim()) {
+    if (urlList.length === 0) return false;
+    if (!form.use_wrapper && !form.cookies_path.trim()) {
       alert("cookies.txt path is required");
-      return;
+      return false;
     }
 
     const body = {
       urls: urlList,
-      cookies_path: form.cookies_path.trim(),
+      cookies_path: form.cookies_path.trim() || null,
+      use_wrapper: form.use_wrapper,
+      wrapper_url: form.wrapper_url.trim(),
+      wrapper_decrypt_host: form.wrapper_decrypt_host.trim(),
+      wrapper_decrypt_port: form.wrapper_decrypt_port,
       output_path: form.output_path.trim(),
       temp_path: form.temp_path.trim(),
       ffmpeg_path: form.ffmpeg_path.trim(),
@@ -188,14 +209,23 @@ export function useSubmitTask(onSuccess?: () => void) {
           msg = err.detail.map((e: { msg?: string }) => e.msg || String(e)).join("; ");
         }
         alert(`submit failed: ${msg}`);
-        return;
+        return false;
       }
 
       onSuccess?.();
+      return true;
     } catch {
       alert("submit failed, check if backend is running");
+      return false;
     }
   };
+}
+
+export async function getWrapperStatus(wrapperUrl: string): Promise<WrapperStatus> {
+  const params = new URLSearchParams({ wrapper_url: wrapperUrl });
+  const response = await fetch(`/api/wrapper/status?${params.toString()}`);
+  if (!response.ok) throw new Error("wrapper unavailable");
+  return response.json() as Promise<WrapperStatus>;
 }
 
 // ── 任务列表 ──────────────────────────────────────────────────

@@ -35,6 +35,7 @@ AppleMusic Downloader 是一个功能强大的 Apple Music 下载工具，支持
   - [方式二：桌面安装程序](#方式二桌面安装程序仅限-windows)
   - [方式三：从源码运行](#方式三从源码运行)
 - [CLI 命令行使用](#cli-命令行使用)
+- [Wrapper v2 与 ALAC](#wrapper-v2-与-alac)
 - [API 服务部署](#api-服务部署)
   - [启动 API 服务](#启动-api-服务)
   - [API 端点概览](#api-端点概览)
@@ -107,9 +108,28 @@ amdl -c /path/to/cookies.txt \
 # 指定输出目录
 amdl -c /path/to/cookies.txt -o "./My Music" "https://music.apple.com/..."
 
-# 指定音频编码和格式
-amdl -c /path/to/cookies.txt --codec-song aac-256k --audio-format mp3 "https://music.apple.com/..."
+# 指定源编码优先级
+amdl -c /path/to/cookies.txt --song-codec-priority aac-web "https://music.apple.com/..."
 ```
+
+---
+
+## Wrapper v2 与 ALAC
+
+桌面端默认连接用户自行部署的本机 [wrapper-v2](https://github.com/glomatico/wrapper-v2)，可在设置页完成 Apple ID 登录和 2FA；本项目不安装或启动 wrapper，也不分发 Apple Music APK 或原生库。Wrapper HTTP 地址和解密地址只允许 `localhost`、`127.0.0.1` 或 `::1`。密码和验证码仅用于一次登录请求，不会写入设置或任务日志。
+
+CLI 直接透传 gamdl 3.8.5 的 wrapper 参数：
+
+```bash
+amdl --use-wrapper \
+  --wrapper-url http://127.0.0.1 \
+  --wrapper-decrypt-host 127.0.0.1 \
+  --wrapper-decrypt-port 10020 \
+  --song-codec-priority alac,aac-web \
+  "https://music.apple.com/..."
+```
+
+“ALAC 无损”是 Apple Music 提供的源编码，成功时保留 gamdl 生成的 `.m4a` 容器，不经过二次转码；曲目没有 ALAC 时会回退 AAC 并在任务日志中标明实际 codec。“下载后转换”中的 FLAC、MP3 等只是对已下载音频再次编码，不能把 AAC 变成真正无损。Cookies 模式仍可用于 AAC，但不能请求 ALAC。更多 wrapper 依赖说明见 [gamdl 文档](https://github.com/glomatico/gamdl/blob/3.8.4/README.md#optional-dependencies)。
 
 ---
 
@@ -350,7 +370,7 @@ python -m amdl
 
 - Python 3.10 或更高版本
 - 有效的 Apple Music 订阅
-- Netscape 格式的 Cookies 文件
+- 本机 wrapper-v2，或 Netscape 格式的 Cookies 文件
 - FFmpeg
 
 **获取 Cookies 文件：**

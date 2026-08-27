@@ -157,7 +157,11 @@ def _ffmpeg_filter(path: str) -> bool:
     return name == _exe("ffmpeg") or name == _exe("ffprobe")
 
 
-_NM3U8DLRE_RELEASE = "https://github.com/nilaoda/N_m3u8DL-RE/releases/latest/download"
+_NM3U8DLRE_VERSION = "v0.6.0-beta"
+_NM3U8DLRE_BUILD = "20260629"
+_NM3U8DLRE_RELEASE = (
+    f"https://github.com/nilaoda/N_m3u8DL-RE/releases/download/{_NM3U8DLRE_VERSION}"
+)
 
 
 def _nm3u8dlre_urls() -> list[str]:
@@ -172,7 +176,11 @@ def _nm3u8dlre_urls() -> list[str]:
 
     # 2) GitHub fallback (all platforms)
     ext = ".tar.gz" if os_ != "windows" else ".zip"
-    urls.append(f"{_NM3U8DLRE_RELEASE}/N_m3u8DL-RE_{os_}-{arch}{ext}")
+    release_os = {"macos": "osx", "windows": "win"}.get(os_, os_)
+    urls.append(
+        f"{_NM3U8DLRE_RELEASE}/N_m3u8DL-RE_{_NM3U8DLRE_VERSION}_"
+        f"{release_os}-{arch}_{_NM3U8DLRE_BUILD}{ext}"
+    )
 
     return urls
 

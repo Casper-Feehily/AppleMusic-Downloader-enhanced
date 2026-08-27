@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import TagInput from "./TagInput";
-import { FormState, DEFAULT_FORM, useSubmitTask } from "../service";
+import { FormState, DEFAULT_FORM, getWrapperStatus, useSubmitTask } from "../service";
+import type { WrapperStatus } from "../service";
 import { useI18n } from "../i18n";
 
 const AUDIO_FORMATS = [
@@ -13,7 +14,6 @@ const AUDIO_FORMATS = [
   { value: "aac", label: "AAC" },
   { value: "m4a", label: "M4A" },
   { value: "ogg", label: "OGG" },
-  { value: "alac", label: "ALAC" },
 ];
 
 const AUDIO_FORMATS_ZH = [
@@ -24,7 +24,6 @@ const AUDIO_FORMATS_ZH = [
   { value: "aac", label: "AAC" },
   { value: "m4a", label: "M4A" },
   { value: "ogg", label: "OGG" },
-  { value: "alac", label: "ALAC" },
 ];
 
 declare global {
@@ -38,6 +37,7 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
   const submitTask = useSubmitTask();
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [hover, setHover] = useState(false);
+  const [wrapperStatus, setWrapperStatus] = useState<WrapperStatus | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -57,14 +57,22 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
       .catch(() => {});
   }, []);
 
-  const set = (key: keyof FormState, value: string) => {
+  useEffect(() => {
+    if (!form.use_wrapper) return;
+    getWrapperStatus(form.wrapper_url)
+      .then(setWrapperStatus)
+      .catch(() => setWrapperStatus(null));
+  }, [form.use_wrapper, form.wrapper_url]);
+
+  const set = (key: keyof FormState, value: string | boolean | number) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
       // 排除 urls 字段，不保存到后端 settings
       const { urls: _urls, ...rest } = next;
+      void _urls;
       // 随时保存 urls 到 sessionStorage
       if (key === "urls") {
-        sessionStorage.setItem("amdl_pending_urls", value);
+        sessionStorage.setItem("amdl_pending_urls", String(value));
       }
       fetch("/api/settings", {
         method: "POST",
@@ -75,18 +83,48 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
     });
   };
 
+  const setSourceCodec = (codec: string) => {
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        codec_song: codec,
+        audio_format: codec === "alac" ? "" : prev.audio_format,
+      };
+      const { urls: _urls, ...rest } = next;
+      void _urls;
+      fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rest),
+      }).catch(() => {});
+      return next;
+    });
+  };
+
   const handleSubmit = async () => {
-    if (!form.cookies_path || !form.cookies_path.trim()) {
+    if (!form.use_wrapper && (!form.cookies_path || !form.cookies_path.trim())) {
       alert(t("download.cookies_empty"));
+      return;
+    }
+    if (form.use_wrapper && !wrapperReady) {
+      alert(t("download.wrapper_not_ready"));
       return;
     }
     // 直接用当前 form 的全部状态提交，无需读 localStorage
     // form 已在 useEffect 中从 /api/settings 加载，set() 实时更新
-    await submitTask(form);
+    const submitted = await submitTask(form);
+    if (!submitted) return;
     // 提交成功后清空暂存
     sessionStorage.removeItem("amdl_pending_urls");
     onNavigate?.("queue");
   };
+
+  const wrapperReady = Boolean(
+    wrapperStatus?.reachable
+    && wrapperStatus.compatible
+    && wrapperStatus.authenticated
+    && wrapperStatus.playback_ready
+  );
 
   const browseFile = () => {
     if (window.pywebview?.api) {
@@ -184,19 +222,30 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
           placeholder={t("download.url.placeholder")}
         />
 
-        {/* ── Path rows ── */}
-        <div className="mb-5 space-y-2">
-          <div className="flex gap-2">
-            <input
-              className="input"
-              placeholder={t("download.cookies")}
-              value={form.cookies_path}
-              onChange={(e) => set("cookies_path", e.target.value)}
-            />
-            <button className="btn-secondary shrink-0 text-[11px]" onClick={browseFile}>
-              {t("download.cookies.browse")}
+        {form.use_wrapper && !wrapperReady && (
+          <div className="card mb-5 px-3.5 py-3 text-[11px]" style={{ color: "var(--text-dim)" }}>
+            <div>{t("download.wrapper_not_ready")}</div>
+            <button className="btn-secondary mt-2 px-2.5 py-1 text-[10.5px]" onClick={() => onNavigate?.("settings")}>
+              {t("download.wrapper_settings")}
             </button>
           </div>
+        )}
+
+        {/* ── Path rows ── */}
+        <div className="mb-5 space-y-2">
+          {!form.use_wrapper && (
+            <div className="flex gap-2">
+              <input
+                className="input"
+                placeholder={t("download.cookies")}
+                value={form.cookies_path}
+                onChange={(e) => set("cookies_path", e.target.value)}
+              />
+              <button className="btn-secondary shrink-0 text-[11px]" onClick={browseFile}>
+                {t("download.cookies.browse")}
+              </button>
+            </div>
+          )}
           <div className="flex gap-2">
             <input
               className="input"
@@ -210,6 +259,22 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
           </div>
         </div>
 
+        {/* ── Source quality ── */}
+        <div className="mb-5">
+          <label className="mb-1.5 block text-[10.5px] font-medium" style={{ color: "var(--text-dim)" }}>
+            {t("download.source_quality")}
+          </label>
+          <select
+            className="input"
+            value={form.codec_song}
+            onChange={(e) => setSourceCodec(e.target.value)}
+          >
+            <option value="aac-web">AAC 256 kbps</option>
+            <option value="atmos">Dolby Atmos</option>
+            <option value="alac" disabled={!form.use_wrapper}>{t("download.alac")}</option>
+          </select>
+        </div>
+
         {/* ── Audio format ── */}
         <div className="mb-5">
           <label className="mb-1.5 block text-[10.5px] font-medium" style={{ color: "var(--text-dim)" }}>
@@ -218,6 +283,7 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
           <select
             className="input"
             value={form.audio_format}
+            disabled={form.codec_song === "alac"}
             onChange={(e) => set("audio_format", e.target.value)}
           >
             {(locale === "zh" ? AUDIO_FORMATS_ZH : AUDIO_FORMATS).map((fmt) => (
@@ -229,6 +295,7 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
         {/* ── Submit ── */}
         <button
           className="btn-primary w-full py-[12px] text-[13px] font-semibold tracking-[0.01em]"
+          disabled={form.use_wrapper && !wrapperReady}
           style={{
             borderRadius: 10,
             letterSpacing: "0.01em",

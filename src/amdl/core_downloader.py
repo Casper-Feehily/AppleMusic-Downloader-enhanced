@@ -12,6 +12,8 @@ import traceback
 from pathlib import Path
 from typing import Callable
 
+import structlog
+
 # ── Python version guard ────────────────────────────────
 _MIN_PYTHON = (3, 10)
 if sys.version_info[:2] < _MIN_PYTHON:
@@ -21,7 +23,7 @@ if sys.platform == "win32":
     os.environ.setdefault("ANYIO_BACKEND", "asyncio")
 
 # ── gamdl imports ───────────────────────────────────────
-from gamdl.api import AppleMusicApi
+from gamdl.api import AppleMusicApi, WrapperApi
 from gamdl.downloader import (
     AppleMusicBaseDownloader,
     AppleMusicDownloader,
@@ -45,6 +47,37 @@ from gamdl.interface import (
 )
 
 LogCallback = Callable[[str], None]
+
+
+def _song_codec_priority(codec: SongCodec) -> list[SongCodec]:
+    return [SongCodec.ALAC, SongCodec.AAC] if codec == SongCodec.ALAC else [codec]
+
+
+def _is_alac_codec(codec: str | None) -> bool:
+    return bool(codec and codec.lower().startswith("alac"))
+
+
+def _configure_gamdl_logging(level: str) -> None:
+    numeric_level = max(getattr(logging, level.upper(), logging.INFO), logging.INFO)
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
+    )
+
+
+def _normalize_playlist_tracks(items: list) -> None:
+    if not any(
+        getattr(getattr(item.media, "playlist_tags", None), "track", None) == 0
+        for item in items
+    ):
+        return
+
+    seen_media: set[int] = set()
+    for item in items:
+        media_key = id(item.media)
+        tags = getattr(item.media, "playlist_tags", None)
+        if tags is not None and media_key not in seen_media:
+            tags.track += 1
+            seen_media.add(media_key)
 
 
 # ── logger ──────────────────────────────────────────────
@@ -110,7 +143,11 @@ def download_urls(**kwargs) -> int:
 async def _download_urls_async(
     *,
     urls: list[str],
-    cookies_path: Path,
+    cookies_path: Path | None = None,
+    use_wrapper: bool = False,
+    wrapper_url: str = "http://127.0.0.1",
+    wrapper_decrypt_host: str = "127.0.0.1",
+    wrapper_decrypt_port: int = 10020,
     output_path: Path = Path("./Apple Music"),
     temp_path: Path = Path("./temp"),
     wvd_path: Path | None = None,
@@ -149,6 +186,7 @@ async def _download_urls_async(
     progress_callback: Callable[[int, int], None] | None = None,
 ) -> int:
     log = _get_logger("amdl.core", log_level, log_callback)
+    _configure_gamdl_logging(log_level)
     log.info("System: Python %s.%s.%s | Platform: %s | EventLoop: %s",
              sys.version_info.major, sys.version_info.minor, sys.version_info.micro,
              sys.platform, type(asyncio.get_running_loop()).__name__)
@@ -161,7 +199,8 @@ async def _download_urls_async(
     # ── absolute paths ──────────────────────────────────
     temp_path = temp_path.resolve()
     output_path = output_path.resolve()
-    cookies_path = cookies_path.resolve()
+    if cookies_path:
+        cookies_path = cookies_path.resolve()
     if wvd_path:
         wvd_path = wvd_path.resolve()
 
@@ -176,8 +215,25 @@ async def _download_urls_async(
     exclude_list = [t.strip().lower() for t in (exclude_tags or "").split(",") if t.strip()]
 
     # ── API client ──────────────────────────────────────
+    wrapper_api = None
     try:
-        api = await AppleMusicApi.create_from_netscape_cookies(str(cookies_path), language=language)
+        if use_wrapper:
+            wrapper_api = await WrapperApi.create(
+                base_url=wrapper_url,
+                decrypt_host=wrapper_decrypt_host,
+                decrypt_port=wrapper_decrypt_port,
+            )
+            api = await AppleMusicApi.create_from_wrapper(
+                wrapper_api=wrapper_api,
+                language=language,
+            )
+        else:
+            if cookies_path is None:
+                raise ValueError("cookies_path is required in cookies mode")
+            api = await AppleMusicApi.create_from_netscape_cookies(
+                str(cookies_path),
+                language=language,
+            )
     except Exception as e:
         log.critical(f"API init failed: {e}"); return 1
 
@@ -189,10 +245,16 @@ async def _download_urls_async(
     base_iface = await AppleMusicBaseInterface.create(
         apple_music_api=api, cover_format=cover_format, cover_size=cover_size,
         wvd_path=str(wvd_path) if wvd_path else None,
+        wrapper_api=wrapper_api,
     )
     log.info("AppleMusicBaseInterface created, building AppleMusicInterface...")
+    codec_priority = _song_codec_priority(codec_song)
     iface = AppleMusicInterface(
-        song=AppleMusicSongInterface(base=base_iface, synced_lyrics_format=synced_lyrics_format, codec_priority=[codec_song]),
+        song=AppleMusicSongInterface(
+            base=base_iface,
+            synced_lyrics_format=synced_lyrics_format,
+            codec_priority=codec_priority,
+        ),
         music_video=AppleMusicMusicVideoInterface(base=base_iface, codec_priority=[codec_music_video]),
         uploaded_video=AppleMusicUploadedVideoInterface(base=base_iface, quality=quality_post),
     )
@@ -308,18 +370,35 @@ async def _download_urls_async(
     total = len(items) or 1
     completed = 0
     done_files: list[str] = []
+    seen_error_media: set[int] = set()
+    _normalize_playlist_tracks(items)
 
     for item in items:
         if item.media.error:
+            media_key = id(item.media)
+            if media_key in seen_error_media:
+                continue
+            seen_error_media.add(media_key)
             errors += 1
             m = item.media.media_metadata
             n = m.get("attributes", {}).get("name", "?") if isinstance(m, dict) else "?"
-            log.error('Skip "%s": %s', n, item.media.error, exc_info=not no_exceptions)
+            log.error('Skip "%s": %s', n, item.media.error)
             continue
         if item.media.partial or not item.final_path:
             continue
 
         title = item.media.media_metadata.get("attributes", {}).get("name", "?") if isinstance(item.media.media_metadata, dict) else "?"
+        actual_codec = getattr(
+            getattr(getattr(item.media, "stream_info", None), "audio_track", None),
+            "codec",
+            None,
+        )
+        if codec_song == SongCodec.ALAC and actual_codec and not _is_alac_codec(actual_codec):
+            log.warning(
+                'WARNING: ALAC unavailable for "%s"; falling back to AAC (%s)',
+                title,
+                actual_codec,
+            )
         log.info('Downloading "%s"', title)
         try:
             await dl.download(item)
@@ -341,13 +420,14 @@ async def _download_urls_async(
             log.error('Failed "%s": %s\n%s', title, e, traceback.format_exc())
 
     # ── format conversion ───────────────────────────────
-    if (audio_format or video_format) and done_files:
+    effective_audio_format = None if codec_song == SongCodec.ALAC else audio_format
+    if (effective_audio_format or video_format) and done_files:
         try:
             from amdl.converter import convert_file_list, resolve_ffmpeg_executable
             exe = resolve_ffmpeg_executable(ffmpeg_path)
             if exe:
                 log.info("Converting…")
-                convert_file_list([Path(p) for p in done_files], audio_format, video_format, exe,
+                convert_file_list([Path(p) for p in done_files], effective_audio_format, video_format, exe,
                                   log_callback or (lambda m: None))
         except Exception as e:
             log.error("Conversion failed: %s", e, exc_info=not no_exceptions)
