@@ -139,7 +139,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: "AppleMusic Downloader ${{ github.ref_name }}"
-          body_path: CHANGELOG.md
+          generate_release_notes: true
           draft: true
           prerelease: false
           files: |
