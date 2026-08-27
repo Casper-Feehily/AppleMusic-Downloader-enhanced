@@ -1,30 +1,31 @@
 # AppleMusic Downloader
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/wenfeng110402/AppleMusic-Downloader/total?style=social&logo=GitHub)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Casper-Feehily/AppleMusic-Downloader/total?style=social&logo=GitHub)
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/wenfeng110402/AppleMusic-Downloader)
-![GitHub License](https://img.shields.io/github/license/wenfeng110402/AppleMusic-Downloader?style=social)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/Casper-Feehily/AppleMusic-Downloader)
+![GitHub License](https://img.shields.io/github/license/Casper-Feehily/AppleMusic-Downloader?style=social)
 
 - [Chinese README](README.md)
 
 ---
 
-AppleMusic Downloader is a powerful Apple Music download tool that supports downloading songs, music videos, lyrics, and cover art.
+AppleMusic Downloader downloads Apple Music songs, music videos, lyrics, and cover art. It can also download Apple Music's ALAC lossless source through a local wrapper-v2.
 
-The project offers three usage modes:
+> This independently maintained project is based on [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader).
+
+The project offers two usage modes:
 
 | Mode | Use Case |
 |------|----------|
 | **CLI** | Terminal users, install via `pip install applemusic-dl` |
-| **API Server** | Developers, integrate download capabilities into your own apps |
 | **Desktop App** | General users, download the packaged installer and run |
 
 ---
 
 ## Acknowledgments
 
-This project uses code from [gamdl (Glomatico's Apple Music Downloader)](https://github.com/glomatico/gamdl) and [yt-dlp](https://github.com/yt-dlp/yt-dlp). We sincerely thank all contributors to gamdl and yt-dlp for their outstanding work in the open-source community.
+This project is based on [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader) and uses code from [gamdl (Glomatico's Apple Music Downloader)](https://github.com/glomatico/gamdl) and [yt-dlp](https://github.com/yt-dlp/yt-dlp). Thanks to the upstream project and all dependency contributors.
 
 ---
 
@@ -34,16 +35,12 @@ This project uses code from [gamdl (Glomatico's Apple Music Downloader)](https:/
   - [Method 1: pip install (recommended)](#method-1-pip-install-recommended)
   - [Method 2: Desktop installer](#method-2-desktop-installer-windows-only)
   - [Method 3: From source](#method-3-from-source)
+- [Download ALAC Lossless: Quick Start](#download-alac-lossless-quick-start)
+  - [Get the Correct Apple Music APK](#get-the-correct-apple-music-apk)
+  - [Deploy a Local wrapper-v2](#deploy-a-local-wrapper-v2)
+  - [Sign In and Download](#sign-in-and-download)
 - [CLI Usage](#cli-usage)
-- [Wrapper v2 and ALAC](#wrapper-v2-and-alac)
-- [API Server Deployment](#api-server-deployment)
-  - [Starting the API Server](#starting-the-api-server)
-  - [API Endpoints](#api-endpoints)
-  - [API Client Examples](#api-client-examples)
-- [Frontend Deployment](#frontend-deployment)
-  - [Frontend Features](#frontend-features)
-  - [Development Mode](#development-mode)
-  - [Production Mode](#production-mode)
+- [Developer API](#developer-api)
 - [Desktop App](#desktop-app)
 - [Requirements](#requirements)
 - [Supported Link Types](#supported-link-types)
@@ -69,22 +66,115 @@ amdl --help
 For desktop GUI mode, install with desktop dependencies:
 
 ```bash
-pip install applemusic-dl[desktop]
+pip install "applemusic-dl[desktop]"
 ```
 
 ### Method 2: Desktop installer (Windows only)
 
-1. Download the latest installer from the [Releases](https://github.com/wenfeng110402/AppleMusic-Downloader/releases) page
+1. Download the latest installer from the [Releases](https://github.com/Casper-Feehily/AppleMusic-Downloader/releases) page
 2. Run `AppleMusicDownloader_Setup.exe` and follow the prompts
 3. Find "Apple Music Downloader" in your Start menu
 
 ### Method 3: From source
 
 ```bash
-git clone https://github.com/wenfeng110402/AppleMusic-Downloader.git
+git clone https://github.com/Casper-Feehily/AppleMusic-Downloader.git
 cd AppleMusic-Downloader
-pip install -r requirements.txt
-pip install -e .
+pip install -e ".[desktop]"
+```
+
+---
+
+## Download ALAC Lossless: Quick Start
+
+ALAC is a lossless source codec served by Apple Music; it is not created by converting AAC to FLAC. It requires a local [wrapper-v2](https://github.com/glomatico/wrapper-v2); Cookies mode downloads AAC only.
+
+You need an active Apple Music subscription, Docker, FFmpeg, and a local wrapper-v2. In the desktop app, select **Wrapper v2** and **ALAC Lossless**. Wrapper HTTP and decrypt addresses are restricted to `localhost`, `127.0.0.1`, or `::1`.
+
+### Get the Correct Apple Music APK
+
+wrapper-v2 upstream currently validates **Apple Music for Android 3.6.0-beta, build 1109**. Obtain this `.apk` or `.apkm` legally yourself; neither this project nor wrapper-v2 provides, links to, or distributes APKs or Apple native libraries.
+
+The APK architecture must match the wrapper build target: use `x86_64` for Intel / AMD 64-bit computers, and `arm64-v8a` for Apple Silicon, Linux ARM, or Windows on ARM. Follow the [wrapper-v2 setup guide](https://github.com/glomatico/wrapper-v2#one-time-setup).
+
+### Deploy a Local wrapper-v2
+
+Clone wrapper-v2, then run only the command set matching your architecture.
+
+```bash
+git clone https://github.com/glomatico/wrapper-v2.git
+cd wrapper-v2
+```
+
+#### Apple Silicon / Linux ARM / Windows on ARM
+
+```bash
+bash tools/extract-libs.sh --bundle /absolute/path/apple-music.apkm --arch arm64-v8a
+bash tools/stage-system.sh --arch arm64-v8a
+TARGET_ARCH=arm64-v8a RUNTIME_PLATFORM=linux/arm64 docker compose up --build -d
+```
+
+#### Intel / AMD 64-bit (including typical Windows PCs)
+
+```bash
+bash tools/extract-libs.sh --bundle /absolute/path/apple-music.apkm --arch x86_64
+bash tools/stage-system.sh --arch x86_64
+docker compose up --build -d
+```
+
+On any platform, check the local service:
+
+```bash
+curl http://127.0.0.1/health
+```
+
+`runtime.playback_ready` in the `/health` response must be `true` before ALAC downloads work. Do not post `/me` output publicly. If the build, architecture, or APK version does not match, follow the [wrapper-v2 local-build guide](https://github.com/glomatico/wrapper-v2#local-build); do not substitute an arbitrary current Apple Music APK.
+
+#### Windows: run the scripts in WSL2
+
+`tools/*.sh` are Bash scripts and should not be run directly in PowerShell. Install Docker Desktop and enable **WSL Integration**, then install Ubuntu from Windows PowerShell:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+After restarting, open Ubuntu. Keep the APK/APKM in a Windows folder and reference it in WSL using `/mnt/c/...`. For a typical Intel/AMD Windows computer:
+
+```bash
+cd ~/wrapper-v2
+bash tools/extract-libs.sh \
+  --bundle /mnt/c/Users/your-name/Downloads/apple-music.apkm --arch x86_64
+bash tools/stage-system.sh --arch x86_64
+docker compose up --build -d
+```
+
+In the Windows AppleMusic Downloader desktop app, use `http://127.0.0.1`, decrypt host `127.0.0.1`, and port `10020`; Docker Desktop exposes the wrapper port to Windows.
+
+### Sign In and Download
+
+1. Start the desktop app. In **Account Settings**, select **Wrapper v2** and use `http://127.0.0.1`, decrypt host `127.0.0.1`, and port `10020`.
+2. Check status, then sign in with your Apple ID and complete 2FA on the same page.
+3. On the download page, choose **ALAC Lossless** as the source quality and submit an Apple Music link.
+
+Passwords and 2FA codes are used for a single login request only, and are not written to settings or task logs. Successful ALAC tracks keep the `.m4a` container without re-encoding; unavailable ALAC falls back to AAC and reports the actual codec in the task log. Post-download FLAC or MP3 options only re-encode audio and cannot turn AAC into true lossless audio.
+
+Verify a completed download with `ffprobe`:
+
+```bash
+ffprobe -v error -select_streams a:0 \
+  -show_entries stream=codec_name -of default=nw=1 downloaded-file.m4a
+# Expected: codec_name=alac
+```
+
+The CLI can use wrapper too:
+
+```bash
+amdl --use-wrapper \
+  --wrapper-url http://127.0.0.1 \
+  --wrapper-decrypt-host 127.0.0.1 \
+  --wrapper-decrypt-port 10020 \
+  --song-codec-priority alac,aac \
+  "https://music.apple.com/..."
 ```
 
 ---
@@ -95,233 +185,25 @@ pip install -e .
 # View help
 amdl --help
 
-# Download a single track
+# Download a single track (Cookies mode downloads AAC)
 amdl -c /path/to/cookies.txt "https://music.apple.com/us/album/left-and-right/1630451412?i=1630451413"
 
 # Download an entire album
 amdl -c /path/to/cookies.txt "https://music.apple.com/us/album/left-and-right/1630451412"
 
-# Download a complete playlist (automatically expands and downloads all available tracks)
+# Download a complete playlist
 amdl -c /path/to/cookies.txt \
   "https://music.apple.com/us/playlist/playlist-name/pl.1234567890abcdef1234567890abcdef"
 
 # Specify output directory
 amdl -c /path/to/cookies.txt -o "./My Music" "https://music.apple.com/..."
-
-# Specify source codec priority
-amdl -c /path/to/cookies.txt --song-codec-priority aac-web "https://music.apple.com/..."
 ```
 
 ---
 
-## Wrapper v2 and ALAC
+## Developer API
 
-The desktop app defaults to a user-managed local [wrapper-v2](https://github.com/glomatico/wrapper-v2), with Apple ID and 2FA login in Settings. This project does not install or start wrapper, nor distribute an Apple Music APK or native libraries. Wrapper HTTP and decrypt addresses are restricted to `localhost`, `127.0.0.1`, or `::1`. Passwords and 2FA codes are used for one request only and are never written to settings or task logs.
-
-The CLI passes the gamdl 3.8.5 wrapper options through unchanged:
-
-```bash
-amdl --use-wrapper \
-  --wrapper-url http://127.0.0.1 \
-  --wrapper-decrypt-host 127.0.0.1 \
-  --wrapper-decrypt-port 10020 \
-  --song-codec-priority alac,aac-web \
-  "https://music.apple.com/..."
-```
-
-“ALAC Lossless” selects the source codec served by Apple Music. A successful ALAC download keeps gamdl's `.m4a` container without post-conversion; unavailable ALAC falls back to AAC and records the actual codec in the task log. FLAC, MP3, and the other “post-download conversion” choices only re-encode downloaded audio and cannot make AAC truly lossless. Cookies mode remains available for AAC but cannot request ALAC. See [gamdl's wrapper dependency notes](https://github.com/glomatico/gamdl/blob/3.8.4/README.md#optional-dependencies) for details.
-
----
-
-## API Server Deployment
-
-The project includes a built-in FastAPI backend that can be deployed independently as an API service.
-
-### Starting the API Server
-
-```bash
-# Start after installation
-python -m amdl --server
-
-# Custom port
-python -m amdl --server --port 8080
-
-# Allow external access (use a reverse proxy in production)
-python -m amdl --server --host 0.0.0.0 --port 8000
-```
-
-Visit `http://127.0.0.1:8000/docs` for the interactive API documentation (Swagger UI).
-
-### API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/info` | Get supported codecs, formats, etc. |
-| GET | `/api/dependencies` | Check external dependencies (ffmpeg, N_m3u8DL-RE) |
-| POST | `/api/tasks` | Submit a download task |
-| GET | `/api/tasks` | List all tasks |
-| GET | `/api/tasks/{task_id}` | Get task details |
-| DELETE | `/api/tasks/{task_id}` | Cancel a task |
-| WebSocket | `/api/ws/{task_id}` | Real-time download progress |
-| GET | `/api/settings` | Read user preferences |
-| POST | `/api/settings` | Save user preferences |
-| DELETE | `/api/temp` | Clean temp directory |
-
-See [docs/api.md](docs/api.md) for detailed API documentation.
-
-### API Client Examples
-
-**Python client:**
-
-```python
-import requests
-
-# Submit a download task
-resp = requests.post("http://127.0.0.1:8000/api/tasks", json={
-    "urls": ["https://music.apple.com/us/album/left-and-right/1630451412?i=1630451413"],
-    "cookies_path": "/path/to/cookies.txt",
-    "output_path": "./Apple Music"
-})
-task = resp.json()
-print(f"Task ID: {task['task_id']}")
-
-# Poll for task status
-import time
-while True:
-    status = requests.get(f"http://127.0.0.1:8000/api/tasks/{task['task_id']}").json()
-    print(f"Status: {status['status']}, Progress: {status['progress']}")
-    if status["status"] in ("completed", "failed", "cancelled"):
-        break
-    time.sleep(3)
-```
-
-**curl client:**
-
-```bash
-# Submit a task
-curl -X POST http://127.0.0.1:8000/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "urls": ["https://music.apple.com/us/album/left-and-right/1630451412"],
-    "cookies_path": "/path/to/cookies.txt"
-  }'
-
-# Query task status
-curl http://127.0.0.1:8000/api/tasks/<task_id>
-```
-
-**WebSocket real-time progress (Python):**
-
-```python
-import asyncio
-import websockets
-import json
-
-async def listen_progress(task_id: str):
-    uri = f"ws://127.0.0.1:8000/api/ws/{task_id}"
-    async with websockets.connect(uri) as ws:
-        # Send ping to keep alive
-        await ws.send(json.dumps({"type": "ping"}))
-        async for msg in ws:
-            data = json.loads(msg)
-            print(f"Progress: {data}")
-            if data.get("type") == "completed":
-                break
-
-asyncio.run(listen_progress("your-task-id"))
-```
-
----
-
-## Frontend Deployment
-
-The project includes a Next.js-based web frontend that can be deployed independently.
-
-### Frontend Features
-
-The web frontend provides a complete graphical interface, including:
-
-- **Bilingual UI (i18n)** — Switch between Chinese and English with one click
-- **Dark/Light themes** — CSS variable driven, toggle between modes
-- **Backend status indicator** — Real-time green/red dot in the sidebar
-- **Download form** — Multi-URL input, file browser selector (native dialog in desktop mode)
-- **Audio format selection** — Support MP3/FLAC/WAV/AAC conversion
-- **Persistent settings** — Auto-save to backend on every change, survives page refresh
-- **Download queue** — Real-time task list, progress bars, auto-refresh (3s interval)
-- **Task logs** — Expandable detailed runtime logs for each task
-- **Dependency check** — One-click verification of FFmpeg / N_m3u8DL-RE etc.
-- **Dark-themed UI** — Frosted glass质感, immersive dark design
-
-### Development Mode
-
-```bash
-cd src/fronted
-npm install
-npm run dev
-```
-
-In development mode, the frontend runs on `http://localhost:3000` with API requests proxied to `http://127.0.0.1:8000`.
-
-Start the backend simultaneously:
-
-```bash
-python -m amdl --server
-```
-
-### Production Mode
-
-```bash
-cd src/fronted
-npm install
-npm run build
-```
-
-Build output is in `src/fronted/out/`, deployable to any static file server (Nginx, Caddy, etc.).
-
-**Nginx configuration example:**
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    # Frontend static files
-    root /path/to/src/fronted/out;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API reverse proxy to backend
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-**Docker deployment:**
-
-```bash
-# Backend
-docker run -d --name amdl-api \
-  -p 8000:8000 \
-  -v /path/to/cookies.txt:/cookies.txt \
-  -v /path/to/output:/output \
-  --restart unless-stopped \
-  python:3.10-slim \
-  sh -c "pip install applemusic-dl && python -m amdl --server --host 0.0.0.0"
-
-# Frontend (serve static files with Nginx)
-docker run -d --name amdl-frontend \
-  -p 80:80 \
-  -v /path/to/src/fronted/out:/usr/share/nginx/html \
-  --restart unless-stopped \
-  nginx:alpine
-```
+This README is for download users. API endpoints, deployment, and examples are in [docs/api.md](docs/api.md).
 
 ---
 
@@ -378,7 +260,7 @@ The desktop app is built on pywebview and works on Windows, macOS, and Linux.
 
 ### Required
 
-- Python 3.10 or higher
+- Python 3.10 or higher (Python 3.11+ recommended; Python 3.10 is deprecated by some dependencies)
 - A valid Apple Music subscription
 - A local wrapper-v2 or a Netscape-format cookies file
 - FFmpeg

@@ -1,30 +1,31 @@
 # AppleMusic Downloader
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/wenfeng110402/AppleMusic-Downloader/total?style=social&logo=GitHub)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Casper-Feehily/AppleMusic-Downloader/total?style=social&logo=GitHub)
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
-[![Platform](<https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey>)](https://github.com/wenfeng110402/AppleMusic-Downloader)
-![GitHub License](https://img.shields.io/github/license/wenfeng110402/AppleMusic-Downloader?style=social)
+[![Platform](<https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey>)](https://github.com/Casper-Feehily/AppleMusic-Downloader)
+![GitHub License](https://img.shields.io/github/license/Casper-Feehily/AppleMusic-Downloader?style=social)
 
 - [English README](README_en.md)
 
 ---
 
-AppleMusic Downloader 是一个功能强大的 Apple Music 下载工具，支持下载歌曲、音乐视频、歌词和封面。
+AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐视频、歌词和封面下载，也可通过本机 wrapper-v2 下载 Apple Music 提供的 ALAC 无损音频。
 
-项目提供三种使用方式：
+> 本仓库为独立维护的项目，基于 [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader) 开发。
+
+项目提供两种使用方式：
 
 | 方式                 | 适用场景                                                 |
 | -------------------- | -------------------------------------------------------- |
 | **CLI 命令行** | 终端用户，通过`pip install applemusic-dl` 安装即可使用 |
-| **API 服务**   | 开发者，将下载能力集成到自己的应用中                     |
 | **桌面应用**   | 普通用户，下载打包好的安装程序直接使用                   |
 
 ---
 
 ## 致谢
 
-本项目使用了 [gamdl (Glomatico&#39;s Apple Music Downloader)](https://github.com/glomatico/gamdl) 和 [yt-dlp](https://github.com/yt-dlp/yt-dlp) 的代码。衷心感谢 gamdl 和 yt-dlp 的所有贡献者在开源社区做出的杰出贡献。
+本项目基于 [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader) 开发，并使用了 [gamdl (Glomatico&#39;s Apple Music Downloader)](https://github.com/glomatico/gamdl) 和 [yt-dlp](https://github.com/yt-dlp/yt-dlp) 的代码。感谢原项目及所有依赖项目的贡献者。
 
 ---
 
@@ -34,16 +35,12 @@ AppleMusic Downloader 是一个功能强大的 Apple Music 下载工具，支持
   - [方式一：pip 安装（推荐）](#方式一pip-安装推荐)
   - [方式二：桌面安装程序](#方式二桌面安装程序仅限-windows)
   - [方式三：从源码运行](#方式三从源码运行)
+- [下载 ALAC 无损：快速开始](#下载-alac-无损快速开始)
+  - [准备正确的 Apple Music APK](#准备正确的-apple-music-apk)
+  - [部署本机 wrapper-v2](#部署本机-wrapper-v2)
+  - [在本项目中登录并下载](#在本项目中登录并下载)
 - [CLI 命令行使用](#cli-命令行使用)
-- [Wrapper v2 与 ALAC](#wrapper-v2-与-alac)
-- [API 服务部署](#api-服务部署)
-  - [启动 API 服务](#启动-api-服务)
-  - [API 端点概览](#api-端点概览)
-  - [API 客户端示例](#api-客户端示例)
-- [前端部署](#前端部署)
-  - [前端功能特性](#前端功能特性)
-  - [开发模式](#开发模式)
-  - [生产模式](#生产模式)
+- [开发者 API](#开发者-api)
 - [桌面应用](#桌面应用)
 - [环境要求](#环境要求)
 - [支持的链接类型](#支持的链接类型)
@@ -69,22 +66,115 @@ amdl --help
 如果需要桌面 GUI 模式，请安装带桌面依赖的版本：
 
 ```bash
-pip install applemusic-dl[desktop]
+pip install "applemusic-dl[desktop]"
 ```
 
 ### 方式二：桌面安装程序（仅限 Windows）
 
-1. 从 [Releases](https://github.com/wenfeng110402/AppleMusic-Downloader/releases) 页面下载最新安装程序
+1. 从 [Releases](https://github.com/Casper-Feehily/AppleMusic-Downloader/releases) 页面下载最新安装程序
 2. 运行 `AppleMusicDownloader_Setup.exe` 按提示完成安装
 3. 在开始菜单中找到 "Apple Music Downloader"
 
 ### 方式三：从源码运行
 
 ```bash
-git clone https://github.com/wenfeng110402/AppleMusic-Downloader.git
+git clone https://github.com/Casper-Feehily/AppleMusic-Downloader.git
 cd AppleMusic-Downloader
-pip install -r requirements.txt
-pip install -e .
+pip install -e ".[desktop]"
+```
+
+---
+
+## 下载 ALAC 无损：快速开始
+
+ALAC 不是“转换成 FLAC”得到的格式，而是 Apple Music 直接提供的无损源。它必须使用本机 [wrapper-v2](https://github.com/glomatico/wrapper-v2)；Cookies 模式只能下载 AAC。
+
+需要准备：有效的 Apple Music 订阅、Docker、FFmpeg，以及一个本机 wrapper-v2。Windows/macOS/Linux 的桌面端都在下载页选择 **Wrapper v2** 和 **ALAC 无损** 即可；wrapper 的 HTTP 地址、解密地址只允许 `localhost`、`127.0.0.1` 或 `::1`。
+
+### 准备正确的 Apple Music APK
+
+wrapper-v2 上游当前验证的版本是 **Apple Music for Android 3.6.0-beta，build 1109**。请自行合法取得该版本的 `.apk` 或 `.apkm`；本项目和 wrapper-v2 都不提供、链接或分发 APK 与 Apple 原生库。
+
+APK 内的架构必须和 wrapper 的构建目标一致，不能混用：Intel / AMD 64 位电脑用 `x86_64`，Apple Silicon、Linux ARM 或 Windows on ARM 用 `arm64-v8a`。请以 [wrapper-v2 的安装说明](https://github.com/glomatico/wrapper-v2#one-time-setup) 为准。
+
+### 部署本机 wrapper-v2
+
+先克隆 wrapper-v2；下面两套命令只选与设备架构匹配的一套执行。
+
+```bash
+git clone https://github.com/glomatico/wrapper-v2.git
+cd wrapper-v2
+```
+
+#### Apple Silicon / Linux ARM / Windows on ARM
+
+```bash
+bash tools/extract-libs.sh --bundle /绝对路径/apple-music.apkm --arch arm64-v8a
+bash tools/stage-system.sh --arch arm64-v8a
+TARGET_ARCH=arm64-v8a RUNTIME_PLATFORM=linux/arm64 docker compose up --build -d
+```
+
+#### Intel / AMD 64 位（含普通 Windows 电脑）
+
+```bash
+bash tools/extract-libs.sh --bundle /绝对路径/apple-music.apkm --arch x86_64
+bash tools/stage-system.sh --arch x86_64
+docker compose up --build -d
+```
+
+任一平台启动后都检查本机服务：
+
+```bash
+curl http://127.0.0.1/health
+```
+
+`/health` 返回的 `runtime.playback_ready` 必须为 `true`，才能下载 ALAC。请勿将 `/me` 的返回内容贴到公开位置。若构建、架构或 APK 版本不匹配，请回到 [wrapper-v2 文档](https://github.com/glomatico/wrapper-v2#local-build) 逐项核对，不要尝试用任意最新版 Apple Music APK 代替。
+
+#### Windows 用户：在 WSL2 中执行上述脚本
+
+`tools/*.sh` 是 Bash 脚本，不应直接在 PowerShell 中运行。请安装 Docker Desktop 并开启 **WSL Integration**，然后在 Windows PowerShell 中安装 Ubuntu：
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+重启并打开 Ubuntu 后，将 APK/APKM 放在 Windows 目录，在 WSL 中以 `/mnt/c/...` 路径引用。例如普通 Intel/AMD Windows：
+
+```bash
+cd ~/wrapper-v2
+bash tools/extract-libs.sh \
+  --bundle /mnt/c/Users/你的用户名/Downloads/apple-music.apkm --arch x86_64
+bash tools/stage-system.sh --arch x86_64
+docker compose up --build -d
+```
+
+Windows 桌面版 AppleMusic Downloader 仍填写 `http://127.0.0.1`、解密主机 `127.0.0.1` 和端口 `10020`；Docker Desktop 会将端口提供给 Windows 本机。
+
+### 在本项目中登录并下载
+
+1. 启动桌面应用，进入 **Account Settings**，选择 **Wrapper v2**，填写默认地址 `http://127.0.0.1`、解密主机 `127.0.0.1` 和端口 `10020`。
+2. 点击状态检测；服务已就绪后，在同一页完成 Apple ID 登录和 2FA。
+3. 回到下载页，将“源音质”选为 **ALAC 无损**，提交 Apple Music 链接。
+
+密码和验证码只用于一次登录请求，不会写入设置或任务日志。ALAC 曲目会保留 `.m4a` 容器且不二次转码；未提供 ALAC 的曲目会自动回退 AAC，并在任务日志中写明实际 codec。“下载后转换”里的 FLAC、MP3 等只是重新编码，不能把 AAC 变成真正无损。
+
+用 `ffprobe` 确认结果：
+
+```bash
+ffprobe -v error -select_streams a:0 \
+  -show_entries stream=codec_name -of default=nw=1 下载的文件.m4a
+# 预期：codec_name=alac
+```
+
+CLI 也可使用 wrapper：
+
+```bash
+amdl --use-wrapper \
+  --wrapper-url http://127.0.0.1 \
+  --wrapper-decrypt-host 127.0.0.1 \
+  --wrapper-decrypt-port 10020 \
+  --song-codec-priority alac,aac \
+  "https://music.apple.com/..."
 ```
 
 ---
@@ -95,7 +185,7 @@ pip install -e .
 # 查看帮助
 amdl --help
 
-# 下载单曲
+# 下载单曲（Cookies 模式下载 AAC）
 amdl -c /path/to/cookies.txt "https://music.apple.com/cn/album/left-and-right/1630451412?i=1630451413"
 
 # 下载整张专辑
@@ -107,221 +197,13 @@ amdl -c /path/to/cookies.txt \
 
 # 指定输出目录
 amdl -c /path/to/cookies.txt -o "./My Music" "https://music.apple.com/..."
-
-# 指定源编码优先级
-amdl -c /path/to/cookies.txt --song-codec-priority aac-web "https://music.apple.com/..."
 ```
 
 ---
 
-## Wrapper v2 与 ALAC
+## 开发者 API
 
-桌面端默认连接用户自行部署的本机 [wrapper-v2](https://github.com/glomatico/wrapper-v2)，可在设置页完成 Apple ID 登录和 2FA；本项目不安装或启动 wrapper，也不分发 Apple Music APK 或原生库。Wrapper HTTP 地址和解密地址只允许 `localhost`、`127.0.0.1` 或 `::1`。密码和验证码仅用于一次登录请求，不会写入设置或任务日志。
-
-CLI 直接透传 gamdl 3.8.5 的 wrapper 参数：
-
-```bash
-amdl --use-wrapper \
-  --wrapper-url http://127.0.0.1 \
-  --wrapper-decrypt-host 127.0.0.1 \
-  --wrapper-decrypt-port 10020 \
-  --song-codec-priority alac,aac-web \
-  "https://music.apple.com/..."
-```
-
-“ALAC 无损”是 Apple Music 提供的源编码，成功时保留 gamdl 生成的 `.m4a` 容器，不经过二次转码；曲目没有 ALAC 时会回退 AAC 并在任务日志中标明实际 codec。“下载后转换”中的 FLAC、MP3 等只是对已下载音频再次编码，不能把 AAC 变成真正无损。Cookies 模式仍可用于 AAC，但不能请求 ALAC。更多 wrapper 依赖说明见 [gamdl 文档](https://github.com/glomatico/gamdl/blob/3.8.4/README.md#optional-dependencies)。
-
----
-
-## API 服务部署
-
-项目内置了 FastAPI 后端，可独立部署为 API 服务，供其他应用调用。
-
-### 启动 API 服务
-
-```bash
-# 安装后直接启动
-python -m amdl --server
-
-# 自定义端口
-python -m amdl --server --port 8080
-
-# 允许外部访问（生产环境请配置反向代理）
-python -m amdl --server --host 0.0.0.0 --port 8000
-```
-
-服务启动后访问 `http://127.0.0.1:8000` 可查看 API 文档（Swagger UI）。
-
-### API 端点概览
-
-| 方法      | 路径                     | 说明                                |
-| --------- | ------------------------ | ----------------------------------- |
-| GET       | `/api/health`          | 健康检查                            |
-| GET       | `/api/info`            | 获取支持的编码、格式等选项          |
-| GET       | `/api/dependencies`    | 检查外部依赖（ffmpeg, N_m3u8DL-RE） |
-| POST      | `/api/tasks`           | 提交下载任务                        |
-| GET       | `/api/tasks`           | 获取所有任务列表                    |
-| GET       | `/api/tasks/{task_id}` | 获取单个任务详情                    |
-| DELETE    | `/api/tasks/{task_id}` | 取消任务                            |
-| WebSocket | `/api/ws/{task_id}`    | 实时下载进度推送                    |
-| GET       | `/api/settings`        | 读取用户偏好设置                    |
-| POST      | `/api/settings`        | 保存用户偏好设置                    |
-| DELETE    | `/api/temp`            | 清理临时目录                        |
-
-详细 API 文档请参见 [docs/api.md](docs/api.md)。
-
-### API 客户端示例
-
-**Python 调用：**
-
-```python
-import requests
-
-# 提交下载任务
-resp = requests.post("http://127.0.0.1:8000/api/tasks", json={
-    "urls": ["https://music.apple.com/cn/album/left-and-right/1630451412?i=1630451413"],
-    "cookies_path": "/path/to/cookies.txt",
-    "output_path": "./Apple Music"
-})
-task = resp.json()
-print(f"Task ID: {task['task_id']}")
-
-# 查询任务状态
-import time
-while True:
-    status = requests.get(f"http://127.0.0.1:8000/api/tasks/{task['task_id']}").json()
-    print(f"Status: {status['status']}, Progress: {status['progress']}")
-    if status["status"] in ("completed", "failed", "cancelled"):
-        break
-    time.sleep(3)
-```
-
-**curl 调用：**
-
-```bash
-# 提交任务
-curl -X POST http://127.0.0.1:8000/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "urls": ["https://music.apple.com/cn/album/left-and-right/1630451412"],
-    "cookies_path": "/path/to/cookies.txt"
-  }'
-
-# 查询任务
-curl http://127.0.0.1:8000/api/tasks/<task_id>
-```
-
-**WebSocket 实时进度（Python）：**
-
-```python
-import asyncio
-import websockets
-import json
-
-async def listen_progress(task_id: str):
-    uri = f"ws://127.0.0.1:8000/api/ws/{task_id}"
-    async with websockets.connect(uri) as ws:
-        # 发送 ping 保持连接
-        await ws.send(json.dumps({"type": "ping"}))
-        async for msg in ws:
-            data = json.loads(msg)
-            print(f"进度: {data}")
-            if data.get("type") == "completed":
-                break
-
-asyncio.run(listen_progress("your-task-id"))
-```
-
----
-
-## 前端部署
-
-项目包含一个基于 Next.js 的 Web 前端，可直接部署供用户使用。
-
-### 前端功能特性
-
-Web 前端提供了一套完整的图形界面，包括：
-
-- **中/英双语界面（i18n）** — 一键切换语言
-- **深色/浅色主题** — CSS 变量驱动，支持明暗切换
-- **后端在线状态指示** — 侧边栏红绿点实时反馈后端状态
-- **下载表单** — 支持多 URL 输入、文件浏览选择器（桌面端调用系统对话框）
-- **音频格式选择** — 支持 MP3/FLAC/WAV/AAC 等格式转换
-- **设置持久化** — 每次修改自动保存至后端，刷新不丢失
-- **下载队列** — 实时任务列表、进度条、自动刷新（3 秒间隔）
-- **任务日志** — 可展开查看每个任务的详细运行日志
-- **依赖检测** — 一键检查 FFmpeg / N_m3u8DL-RE 等外部工具是否就绪
-- **深色风格 UI** — 磨砂玻璃质感、沉浸式暗黑设计
-
-### 开发模式
-
-```bash
-cd src/fronted
-npm install
-npm run dev
-```
-
-开发模式下前端运行在 `http://localhost:3000`，API 请求自动代理到 `http://127.0.0.1:8000`。
-
-需要同时启动后端：
-
-```bash
-python -m amdl --server
-```
-
-### 生产模式
-
-```bash
-cd src/fronted
-npm install
-npm run build
-```
-
-构建产物在 `src/fronted/out/` 目录，可直接部署到任意静态文件服务器（Nginx、Caddy 等）。
-
-**Nginx 配置示例：**
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    # 前端静态文件
-    root /path/to/src/fronted/out;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API 反向代理到后端
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-**Docker 部署：**
-
-```bash
-# 后端
-docker run -d --name amdl-api \
-  -p 8000:8000 \
-  -v /path/to/cookies.txt:/cookies.txt \
-  -v /path/to/output:/output \
-  --restart unless-stopped \
-  python:3.10-slim \
-  sh -c "pip install applemusic-dl && python -m amdl --server --host 0.0.0.0"
-
-# 前端（使用 Nginx 提供静态文件）
-docker run -d --name amdl-frontend \
-  -p 80:80 \
-  -v /path/to/src/fronted/out:/usr/share/nginx/html \
-  --restart unless-stopped \
-  nginx:alpine
-```
+README 保留面向下载使用者的说明；接口、部署和调用示例见 [docs/api.md](docs/api.md)。
 
 ---
 
@@ -368,7 +250,7 @@ python -m amdl
 
 ### 必需
 
-- Python 3.10 或更高版本
+- Python 3.10 或更高版本（推荐 Python 3.11+；Python 3.10 已被部分依赖标记为即将弃用）
 - 有效的 Apple Music 订阅
 - 本机 wrapper-v2，或 Netscape 格式的 Cookies 文件
 - FFmpeg
@@ -437,7 +319,7 @@ AppleMusic-Downloader/
 
 1. 本项目不直接提供或存储任何受版权保护的内容，用户需自行提供合法的凭证（如有效的 Apple Music 订阅和 Cookies 文件）以使用相关功能。
 2. 本人不对用户如何使用本工具承担任何责任，因使用本工具产生的任何法律或版权争议，均由用户自行承担。
-3. 本项目基于 [gamdl](https://github.com/glomatico/gamdl) 和 [yt-dlp](https://github.com/yt-dlp/yt-dlp) 提供的代码实现，与原项目的作者无直接关联。如有任何异议，请联系本人以便协助处理。
+3. 本项目基于 [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader) 开发，并使用 [gamdl](https://github.com/glomatico/gamdl) 和 [yt-dlp](https://github.com/yt-dlp/yt-dlp) 的代码；与原项目及依赖项目的作者无直接关联。
 4. 用户在使用本工具时，应自行确保符合当地相关法律法规。
 
 By using this tool, you agree to comply with all applicable laws and assume full responsibility for your actions.
