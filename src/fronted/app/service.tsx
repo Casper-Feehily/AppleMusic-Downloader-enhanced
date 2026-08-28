@@ -66,6 +66,18 @@ export interface WrapperStatus {
   playback_ready: boolean;
 }
 
+export interface WrapperSetupStatus {
+  phase: "idle" | "checking" | "downloading" | "extracting" | "building" | "starting" | "ready" | "error";
+  progress: number;
+  message: string;
+  supported: boolean;
+  docker: { installed: boolean; running: boolean };
+  apkm: { filename: string | null; matches: number; needs_picker: boolean };
+  container: { name: string | null; status: string; compatible: boolean; playback_ready: boolean };
+  requires_confirmation: boolean;
+  error: string | null;
+}
+
 export interface TaskSubmitResponse {
   task_id: string;
   status: string;

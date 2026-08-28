@@ -70,7 +70,12 @@ def resolve_ffmpeg_executable(
             return resolved
         if os.path.exists(candidate):
             return candidate
-    return None
+    from amdl.dependency_manager import find_bundled, find_system_binary
+
+    bundled = find_bundled("ffmpeg")
+    if bundled:
+        return str(bundled)
+    return find_system_binary("ffmpeg")
 
 
 def _run_subprocess(cmd: list[str]) -> tuple[int, str, str]:

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { DEFAULT_FORM, getWrapperStatus } from "../service";
 import { useI18n } from "../i18n";
-import type { FormState, DependencyCheckItem, DependencyCheckResponse, WrapperStatus } from "../service";
+import type { FormState, DependencyCheckItem, DependencyCheckResponse, WrapperStatus, WrapperSetupStatus } from "../service";
 
 function loadSettings(): FormState {
   if (typeof window === "undefined") return DEFAULT_FORM;
@@ -34,6 +34,8 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
   const [checking, setChecking] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<Record<string, DepDownloadStatus>>({});
   const [wrapperStatus, setWrapperStatus] = useState<WrapperStatus | null>(null);
+  const [setupStatus, setSetupStatus] = useState<WrapperSetupStatus | null>(null);
+  const [setupBusy, setSetupBusy] = useState(false);
   const [appleId, setAppleId] = useState("");
   const [password, setPassword] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
@@ -41,6 +43,26 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshSetup = useCallback(async () => {
+    try {
+      const response = await fetch("/api/wrapper/setup/status");
+      const status = (await response.json()) as WrapperSetupStatus;
+      setSetupStatus(status);
+      setSetupBusy(!["idle", "ready", "error"].includes(status.phase));
+      if (status.phase === "ready") {
+        setForm((prev) => ({
+          ...prev,
+          use_wrapper: true,
+          wrapper_url: "http://127.0.0.1",
+          wrapper_decrypt_host: "127.0.0.1",
+          wrapper_decrypt_port: 10020,
+        }));
+      }
+    } catch {
+      /* desktop backend is still starting */
+    }
+  }, []);
 
   // ── auto-check deps & poll download progress ──────────
   useEffect(() => {
@@ -75,6 +97,15 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    const initial = setTimeout(() => void refreshSetup(), 0);
+    const timer = setInterval(() => void refreshSetup(), 2000);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(timer);
+    };
+  }, [refreshSetup]);
 
   useEffect(() => {
     if (loaded) {
@@ -196,6 +227,35 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
     }
   };
 
+  const startWrapperSetup = async (replaceExisting = false) => {
+    let apkmPath: string | null = null;
+    if (setupStatus?.apkm.needs_picker) {
+      const desktopWindow = window as typeof window & {
+        pywebview?: { api?: { open_apkm?: () => Promise<string | null> } };
+      };
+      apkmPath = await desktopWindow.pywebview?.api?.open_apkm?.() ?? null;
+      if (!apkmPath) return;
+    }
+    setSetupBusy(true);
+    try {
+      const response = await fetch("/api/wrapper/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apkm_path: apkmPath, replace_existing: replaceExisting }),
+      });
+      if (!response.ok) throw new Error();
+      await refreshSetup();
+    } catch {
+      setSetupBusy(false);
+    }
+  };
+
+  const confirmReplacement = () => {
+    if (window.confirm(t("settings.wrapper_setup_replace_confirm"))) {
+      void startWrapperSetup(true);
+    }
+  };
+
   useEffect(() => {
     if (!loaded || !form.use_wrapper) return;
     getWrapperStatus(form.wrapper_url)
@@ -282,6 +342,40 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
         )}
 
         {/* ══════ Authentication ══════ */}
+        {setupStatus?.supported && form.use_wrapper && (
+          <Section title={t("settings.wrapper_setup_title")}>
+            <div className="px-4 py-3">
+              <div className="grid grid-cols-2 gap-2 text-[10.5px]" style={{ color: "var(--text-dim)" }}>
+                <span>{t("settings.wrapper_setup_docker")}</span>
+                <span>{setupStatus.docker.running ? t("settings.wrapper_setup_running") : setupStatus.docker.installed ? t("settings.wrapper_setup_stopped") : t("settings.wrapper_setup_missing")}</span>
+                <span>APKM</span>
+                <span className="truncate">{setupStatus.apkm.filename || t("settings.wrapper_setup_choose")}</span>
+                <span>{t("settings.wrapper_setup_container")}</span>
+                <span>{setupStatus.container.status}</span>
+              </div>
+              {setupBusy && (
+                <div className="mt-3">
+                  <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "var(--card-border)" }}>
+                    <div className="h-full rounded-full bg-red-500 transition-all" style={{ width: `${setupStatus.progress}%` }} />
+                  </div>
+                  <p className="mt-1 text-[10px]" style={{ color: "var(--text-muted)" }}>{setupStatus.message}</p>
+                </div>
+              )}
+              {setupStatus.error && <p className="mt-2 text-[10.5px]" style={{ color: "#ef4444" }}>{setupStatus.error}</p>}
+              {!setupStatus.docker.installed && (
+                <a className="mt-2 block text-[10.5px] text-red-500 underline" href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noreferrer">{t("settings.wrapper_setup_get_docker")}</a>
+              )}
+              <button
+                className="btn-primary mt-3 w-full py-2 text-[11px]"
+                disabled={setupBusy || !setupStatus.docker.installed}
+                onClick={setupStatus.requires_confirmation ? confirmReplacement : () => void startWrapperSetup()}
+              >
+                {setupStatus.requires_confirmation ? t("settings.wrapper_setup_replace") : setupStatus.phase === "ready" ? t("settings.wrapper_setup_retry") : t("settings.wrapper_setup_start")}
+              </button>
+            </div>
+          </Section>
+        )}
+
         <Section title={t("settings.authentication")}>
           <Row label={t("settings.auth_mode")}>
             <select className="input" value={form.use_wrapper ? "wrapper" : "cookies"} onChange={(e) => setAuthMode(e.target.value === "wrapper")}>

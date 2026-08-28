@@ -38,11 +38,70 @@ mv next.config.ts.bak next.config.ts
 echo ">>> Frontend built:"
 ls -la out/
 
-# ── Step 2: Download N_m3u8DL-RE for bundling (best-effort) ──
-echo ">>> Downloading N_m3u8DL-RE for $PLATFORM..."
+# ── Step 2: Download bundled binaries ─────────────────────────
+FFMPEG_VERSION="b6.1.1"
+FFMPEG_BASE="https://github.com/eugeneware/ffmpeg-static/releases/download/$FFMPEG_VERSION"
+THIRD_PARTY_DIR="$ROOT_DIR/third_party/ffmpeg"
+mkdir -p "$THIRD_PARTY_DIR"
+
+verify_sha256() {
+  python -c 'import hashlib,sys; p=sys.argv[1]; expected=sys.argv[2]; actual=hashlib.sha256(open(p,"rb").read()).hexdigest(); sys.exit(0 if actual == expected else f"SHA-256 mismatch for {p}: {actual}")' "$1" "$2"
+}
+
+download_verified() {
+  local url="$1" dest="$2" sha="$3"
+  if [[ ! -f "$dest" ]] || ! verify_sha256 "$dest" "$sha"; then
+    curl --fail --location --retry 3 --retry-all-errors "$url" -o "$dest"
+  fi
+  verify_sha256 "$dest" "$sha"
+}
+
+echo ">>> Downloading pinned FFmpeg $FFMPEG_VERSION for $PLATFORM..."
+case "$PLATFORM" in
+  macos)
+    FFMPEG_ASSET="ffmpeg-darwin-arm64"
+    FFMPEG_SOURCE="$ROOT_DIR/bin/ffmpeg-darwin-arm64.unsigned"
+    FFMPEG_DEST="$ROOT_DIR/bin/ffmpeg"
+    FFMPEG_SHA="a90e3db6a3fd35f6074b013f948b1aa45b31c6375489d39e572bea3f18336584"
+    LICENSE_ASSET="darwin-arm64.LICENSE"
+    LICENSE_SHA="cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2"
+    README_ASSET="darwin-arm64.README"
+    README_SHA="05ba4b92c96605434b1aaae3eedf5a2c280c9607bf78ffca9a5b536d9af2dc6a"
+    ;;
+  windows)
+    FFMPEG_ASSET="ffmpeg-win32-x64"
+    FFMPEG_DEST="$ROOT_DIR/bin/ffmpeg.exe"
+    FFMPEG_SOURCE="$FFMPEG_DEST"
+    FFMPEG_SHA="04e1307997530f9cf2fe35cba2ca7e8875ca91da02f89d6c7243df819c94ad00"
+    LICENSE_ASSET="win32-x64.LICENSE"
+    LICENSE_SHA="8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    README_ASSET="win32-x64.README"
+    README_SHA="a636a7183c58006351acbaf35303c0ed85c6e1320fd4e80de453ba6157de6311"
+    ;;
+  *) FFMPEG_DEST=""; FFMPEG_SOURCE="" ;;
+esac
+
 BIN_DIR="$ROOT_DIR/bin"
 mkdir -p "$BIN_DIR"
-BINARY_FLAG=""
+if [[ -n "$FFMPEG_DEST" ]]; then
+  download_verified "$FFMPEG_BASE/$FFMPEG_ASSET" "$FFMPEG_SOURCE" "$FFMPEG_SHA"
+  if [[ "$FFMPEG_SOURCE" != "$FFMPEG_DEST" ]]; then
+    cp "$FFMPEG_SOURCE" "$FFMPEG_DEST"
+  fi
+  download_verified "$FFMPEG_BASE/$LICENSE_ASSET" "$THIRD_PARTY_DIR/LICENSE" "$LICENSE_SHA"
+  download_verified "$FFMPEG_BASE/$README_ASSET" "$THIRD_PARTY_DIR/README" "$README_SHA"
+  chmod +x "$FFMPEG_DEST"
+  if [[ "$PLATFORM" == "macos" ]]; then
+    codesign --force --sign - "$FFMPEG_DEST"
+  fi
+  "$FFMPEG_DEST" -version
+fi
+
+echo ">>> Downloading N_m3u8DL-RE for $PLATFORM..."
+BINARY_FLAGS=()
+if [[ -n "$FFMPEG_DEST" ]]; then
+  BINARY_FLAGS+=("bin/${FFMPEG_DEST##*/}")
+fi
 
 # Temporarily disable set -e so a failed download doesn't kill the build.
 # The binary will be auto-downloaded at runtime via dependency_manager.py.
@@ -56,7 +115,7 @@ case "$PLATFORM" in
       curl -#fL "https://pub-e4955324bbd043d79465a5231bec51f6.r2.dev/N_m3u8DL-RE.exe" -o "$DEST" 2>&1
     fi
     if [[ -f "$DEST" ]]; then
-      BINARY_FLAG="bin/N_m3u8DL-RE.exe;bin"
+      BINARY_FLAGS+=("bin/N_m3u8DL-RE.exe")
     fi
     ;;
   macos)
@@ -80,7 +139,7 @@ case "$PLATFORM" in
     fi
     if [[ -f "$DEST" ]]; then
       chmod +x "$DEST"
-      BINARY_FLAG="bin/N_m3u8DL-RE:bin"
+      BINARY_FLAGS+=("bin/N_m3u8DL-RE")
     fi
     ;;
   linux)
@@ -103,7 +162,7 @@ case "$PLATFORM" in
     fi
     if [[ -f "$DEST" ]]; then
       chmod +x "$DEST"
-      BINARY_FLAG="bin/N_m3u8DL-RE:bin"
+      BINARY_FLAGS+=("bin/N_m3u8DL-RE")
     fi
     ;;
 esac
@@ -111,7 +170,7 @@ esac
 set -o pipefail
 set -e
 
-if [[ -n "$BINARY_FLAG" ]]; then
+if [[ ${#BINARY_FLAGS[@]} -gt 1 ]] || [[ ${#BINARY_FLAGS[@]} -eq 1 && "${BINARY_FLAGS[0]}" == *N_m3u8DL* ]]; then
   echo ">>> N_m3u8DL-RE bundled: $(ls -lh "$BIN_DIR"/N_m3u8DL-RE* 2>/dev/null | awk '{print $5, $NF}')"
 else
   echo ">>> N_m3u8DL-RE skipped (will be auto-downloaded at runtime)"
@@ -141,11 +200,13 @@ PYI_ARGS=(
   --add-data "icon.ico${SEP}."
   --add-data "icon.png${SEP}."
   --add-data "icon.icns${SEP}."
+  --add-data "third_party/ffmpeg${SEP}third_party/ffmpeg"
   --collect-all gamdl
   --collect-binaries gamdl
   --collect-all yt_dlp
   --collect-all pywebview
   --hidden-import amdl.dependency_manager
+  --hidden-import amdl.wrapper_setup
   --hidden-import gamdl._ammuxer
   --hidden-import gamdl.api.apple_music
   --hidden-import gamdl.downloader.amdecrypt
@@ -154,10 +215,9 @@ PYI_ARGS=(
   --noconfirm
 )
 
-# Only add --add-binary if we successfully downloaded N_m3u8DL-RE
-if [[ -n "$BINARY_FLAG" ]]; then
-  PYI_ARGS+=(--add-binary "$BINARY_FLAG")
-fi
+for binary in "${BINARY_FLAGS[@]}"; do
+  PYI_ARGS+=(--add-binary "${binary}${SEP}bin")
+done
 
 # Platform-specific flags
 case "$PLATFORM" in
@@ -173,7 +233,7 @@ case "$PLATFORM" in
     fi
     ;;
   windows)
-    PYI_ARGS+=(--windowed --onefile)
+    PYI_ARGS+=(--windowed --onedir --contents-directory .)
     if [[ -f "icon.ico" ]]; then
       PYI_ARGS+=(--icon "icon.ico")
     fi
@@ -207,6 +267,7 @@ case "$PLATFORM" in
     DST_BUNDLE="$DIST_DIR/${APP_NAME}-macos-arm64.app"
     DMG_PATH="$DIST_DIR/${APP_NAME}-macos-arm64.dmg"
     if [[ -d "$SRC_BUNDLE" ]]; then
+      rm -rf "$DST_BUNDLE"
       mv "$SRC_BUNDLE" "$DST_BUNDLE"
       # 设置 macOS 图标（.icns）
       if [[ -f "$ROOT_DIR/icon.icns" ]]; then
@@ -228,9 +289,9 @@ case "$PLATFORM" in
     fi
     ;;
   windows)
-    EXE_PATH="$ROOT_DIR/dist/$APP_NAME.exe"
-    if [[ -f "$EXE_PATH" ]]; then
-      mv "$EXE_PATH" "$DIST_DIR/${APP_NAME}-windows-x64.exe"
+    APP_DIR="$ROOT_DIR/dist/$APP_NAME"
+    if [[ -d "$APP_DIR" ]]; then
+      mv "$APP_DIR" "$DIST_DIR/${APP_NAME}-windows-x64"
     fi
     ;;
   linux)

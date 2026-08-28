@@ -142,14 +142,26 @@ def _bundle_dir() -> Path | None:
 _FFMPEG_RELEASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
 
 
-def _ffmpeg_url() -> str:
+def _ffmpeg_urls() -> list[str]:
     os_ = _os()
-    arch = _arch()
-    if os_ == "macos":
-        return f"{_FFMPEG_RELEASE}/ffmpeg-master-latest-macos-{arch}-gpl.zip"
-    if os_ == "windows":
-        return f"{_FFMPEG_RELEASE}/ffmpeg-master-latest-win64-gpl.zip"
-    return f"{_FFMPEG_RELEASE}/ffmpeg-master-latest-linux64-gpl.tar.xz"
+    if os_ in ("macos", "windows"):
+        # Desktop releases bundle a pinned ffmpeg-static binary.  Do not fall
+        # back to BtbN here: it has no macOS assets and "latest" is unpinned.
+        return []
+    return [f"{_FFMPEG_RELEASE}/ffmpeg-master-latest-linux64-gpl.tar.xz"]
+
+
+def find_system_binary(name: str) -> str | None:
+    """Resolve PATH and the standard Homebrew prefixes used by Finder apps."""
+    found = shutil.which(_exe(name))
+    if found:
+        return found
+    if _os() == "macos":
+        for prefix in (Path("/opt/homebrew/bin"), Path("/usr/local/bin")):
+            candidate = prefix / _exe(name)
+            if candidate.is_file():
+                return str(candidate)
+    return None
 
 
 def _ffmpeg_filter(path: str) -> bool:
@@ -220,7 +232,7 @@ def _get_defs() -> list[DependencyDef]:
         DependencyDef(
             name="ffmpeg",
             exe_name=_exe("ffmpeg"),
-            download_urls=[_ffmpeg_url()],
+            download_urls=_ffmpeg_urls(),
             archive_type="zip" if os_ != "linux" else "tarxz",
             extract_filter=_ffmpeg_filter,
         ),
@@ -504,7 +516,7 @@ def _ensure_dependencies_sync() -> None:
         dest = BIN_DIR / exe_name
 
         # ── already installed system-wide? ────────────
-        if shutil.which(exe_name) is not None:
+        if find_system_binary(dep.name) is not None:
             _progress.update(dep.name, "ok", 100)
             logger.info("%s found in system PATH, skipping download", dep.name)
             continue
@@ -544,6 +556,11 @@ def _ensure_dependencies_sync() -> None:
         # skip N_m3u8DL-RE on macOS arm64 if URL not available (pre-release)
         if dep.name == "N_m3u8DL-RE" and _os() == "macos" and _arch() not in ("arm64", "x64"):
             _progress.update(dep.name, "skipped", 0, "No prebuilt binary for this platform")
+            continue
+
+        if not dep.download_urls:
+            _progress.update(dep.name, "error", 0, "Bundled binary is missing")
+            logger.warning("No safe runtime download is configured for %s", dep.name)
             continue
 
         result = _download_and_extract(dep)
