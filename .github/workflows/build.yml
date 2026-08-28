@@ -129,9 +129,14 @@ jobs:
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
-          $listing = & 7z l dist/AppleMusicDownloader-Setup-windows-x64.exe
-          if ($listing -notmatch 'bin\\ffmpeg.exe') { throw "Installer does not contain FFmpeg" }
-          if ($listing -notmatch 'third_party\\ffmpeg\\LICENSE') { throw "Installer does not contain the FFmpeg license" }
+          $installer = Resolve-Path 'dist/AppleMusicDownloader-Setup-windows-x64.exe'
+          $installDir = Join-Path $env:RUNNER_TEMP 'amdl-install-check'
+          $process = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$installDir") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Installer exited with code $($process.ExitCode)" }
+          $ffmpeg = Join-Path $installDir 'bin/ffmpeg.exe'
+          if (-not (Test-Path $ffmpeg)) { throw "Installed app does not contain FFmpeg" }
+          & $ffmpeg -version
+          if (-not (Test-Path (Join-Path $installDir 'third_party/ffmpeg/LICENSE'))) { throw "Installed app does not contain the FFmpeg license" }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
