@@ -98,6 +98,23 @@ jobs:
           BUILD_OS: ${{ matrix.os }}
         run: bash scripts/build.sh "$BUILD_OS"
 
+      - name: Verify bundled FFmpeg (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          test -x dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffmpeg
+          test -f dist/AppleMusicDownloader-macos-arm64.app/Contents/Resources/third_party/ffmpeg/LICENSE
+          dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffmpeg -version
+          codesign --verify --deep --strict dist/AppleMusicDownloader-macos-arm64.app
+
+      - name: Verify bundled FFmpeg (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $ffmpeg = 'dist/AppleMusicDownloader-windows-x64/bin/ffmpeg.exe'
+          if (-not (Test-Path $ffmpeg)) { throw "Bundled ffmpeg.exe is missing" }
+          & $ffmpeg -version
+          if (-not (Test-Path 'dist/AppleMusicDownloader-windows-x64/third_party/ffmpeg/LICENSE')) { throw "FFmpeg license is missing" }
+
       - name: Build Windows installer
         if: matrix.os == 'windows'
         shell: pwsh
@@ -107,6 +124,14 @@ jobs:
             $version = '${{ github.ref_name }}'.TrimStart('v')
           }
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" scripts/windows-installer.iss
+
+      - name: Verify Windows installer contents
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $listing = & 7z l dist/AppleMusicDownloader-Setup-windows-x64.exe
+          if ($listing -notmatch 'bin\\ffmpeg.exe') { throw "Installer does not contain FFmpeg" }
+          if ($listing -notmatch 'third_party\\ffmpeg\\LICENSE') { throw "Installer does not contain the FFmpeg license" }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -140,6 +165,8 @@ jobs:
         with:
           name: "AppleMusic Downloader ${{ github.ref_name }}"
           generate_release_notes: true
+          body: |
+            Windows and Apple Silicon macOS installers include FFmpeg from [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1). License and build information are included under `third_party/ffmpeg/`; see [FFmpeg Legal](https://ffmpeg.org/legal.html).
           draft: true
           prerelease: false
           files: |

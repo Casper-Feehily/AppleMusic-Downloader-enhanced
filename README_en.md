@@ -76,6 +76,8 @@ Download the installer for your system from the [Releases](https://github.com/Ca
 - Windows: run `AppleMusicDownloader-Setup-windows-x64.exe`
 - Apple Silicon Mac: open `AppleMusicDownloader-macos-arm64.dmg` and drag the app into Applications
 
+Windows and Apple Silicon macOS installers bundle FFmpeg, so no first-launch download is required. The binary comes from pinned [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1); license and build information are included under `third_party/ffmpeg/`. See [FFmpeg Legal](https://ffmpeg.org/legal.html) for source and distribution details.
+
 ### Method 3: From source
 
 ```bash
@@ -99,6 +101,8 @@ wrapper-v2 upstream currently validates **Apple Music for Android 3.6.0-beta, bu
 The APK architecture must match the wrapper build target: use `x86_64` for Intel / AMD 64-bit computers, and `arm64-v8a` for Apple Silicon, Linux ARM, or Windows on ARM. Follow the [wrapper-v2 setup guide](https://github.com/glomatico/wrapper-v2#one-time-setup).
 
 ### Deploy a Local wrapper-v2
+
+The Apple Silicon macOS desktop app can do this from **Settings → Local Wrapper Setup**. Install Docker Desktop first and place a compatible APKM in `~/Downloads`. The app extracts and verifies Apple libraries locally and never uploads or retains the original APKM. The first Windows release still uses the manual steps below.
 
 Clone wrapper-v2, then run only the command set matching your architecture.
 
@@ -264,14 +268,14 @@ The desktop app is built on pywebview and works on Windows, macOS, and Linux.
 - Python 3.10 or higher (Python 3.11+ recommended; Python 3.10 is deprecated by some dependencies)
 - A valid Apple Music subscription
 - A local wrapper-v2 or a Netscape-format cookies file
-- FFmpeg
+- FFmpeg (bundled in the Windows and Apple Silicon macOS desktop installers; install it yourself for CLI or source use)
 
 **Obtaining a cookies file:**
 
 - Firefox users: Use the [Export Cookies](https://addons.mozilla.org/firefox/addon/export-cookies-txt/) extension
 - Chromium users: Use the [Open Cookies.txt](https://chromewebstore.google.com/detail/open-cookiestxt/gdocmgbfkjnnpapoeobnolbbkoibbcif) extension
 
-**Installing FFmpeg:**
+**Installing FFmpeg for CLI or source use:**
 
 - macOS: `brew install ffmpeg`
 - Linux: `apt install ffmpeg` / `pacman -S ffmpeg`

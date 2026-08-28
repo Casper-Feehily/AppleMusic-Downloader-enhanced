@@ -76,6 +76,8 @@ pip install "applemusic-dl[desktop]"
 - Windows：运行 `AppleMusicDownloader-Setup-windows-x64.exe`
 - Apple Silicon Mac：打开 `AppleMusicDownloader-macos-arm64.dmg`，将应用拖入“应用程序”
 
+Windows 与 Apple Silicon macOS 安装包已内置 FFmpeg，无需首次启动下载。二进制来自固定的 [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1)；许可证与构建说明位于安装包的 `third_party/ffmpeg/`，源码与分发说明见 [FFmpeg Legal](https://ffmpeg.org/legal.html)。
+
 ### 方式三：从源码运行
 
 ```bash
@@ -99,6 +101,8 @@ wrapper-v2 上游当前验证的版本是 **Apple Music for Android 3.6.0-beta�
 APK 内的架构必须和 wrapper 的构建目标一致，不能混用：Intel / AMD 64 位电脑用 `x86_64`，Apple Silicon、Linux ARM 或 Windows on ARM 用 `arm64-v8a`。请以 [wrapper-v2 的安装说明](https://github.com/glomatico/wrapper-v2#one-time-setup) 为准。
 
 ### 部署本机 wrapper-v2
+
+Apple Silicon macOS 桌面版可在“设置 → 本机 Wrapper 配置”中一键完成：提前安装 Docker Desktop，并把兼容的 APKM 放入 `~/Downloads`。程序只在本机提取并校验 Apple 库，不上传或保留原始 APKM。Windows 第一版仍按下面的手动流程配置。
 
 先克隆 wrapper-v2；下面两套命令只选与设备架构匹配的一套执行。
 
@@ -254,14 +258,14 @@ python -m amdl
 - Python 3.10 或更高版本（推荐 Python 3.11+；Python 3.10 已被部分依赖标记为即将弃用）
 - 有效的 Apple Music 订阅
 - 本机 wrapper-v2，或 Netscape 格式的 Cookies 文件
-- FFmpeg
+- FFmpeg（Windows 与 Apple Silicon macOS 桌面安装包已内置；命令行或源码运行需自行安装）
 
 **获取 Cookies 文件：**
 
 - Firefox 用户：使用 [Export Cookies](https://addons.mozilla.org/firefox/addon/export-cookies-txt/) 扩展
 - Chromium 用户：使用 [Open Cookies.txt](https://chromewebstore.google.com/detail/open-cookiestxt/gdocmgbfkjnnpapoeobnolbbkoibbcif) 扩展
 
-**安装 FFmpeg：**
+**命令行或源码运行安装 FFmpeg：**
 
 - macOS: `brew install ffmpeg`
 - Linux: `apt install ffmpeg` / `pacman -S ffmpeg`

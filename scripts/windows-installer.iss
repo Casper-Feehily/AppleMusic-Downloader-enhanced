@@ -23,7 +23,7 @@ ArchitecturesAllowed=x64compatible
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
 
 [Files]
-Source: "..\dist\AppleMusicDownloader-windows-x64.exe"; DestDir: "{app}"; DestName: "AppleMusicDownloader.exe"; Flags: ignoreversion
+Source: "..\dist\AppleMusicDownloader-windows-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Apple Music Downloader"; Filename: "{app}\AppleMusicDownloader.exe"

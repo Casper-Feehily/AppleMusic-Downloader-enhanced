@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import asyncio
 import logging
 import os
 import socket
@@ -325,6 +326,21 @@ class WrapperTwoFactorRequest(WrapperConnection):
         return self
 
 
+class WrapperSetupRequest(BaseModel):
+    apkm_path: str | None = None
+    replace_existing: bool = False
+
+    @field_validator("apkm_path")
+    @classmethod
+    def _validate_apkm_path(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        path = Path(value).expanduser()
+        if not path.is_absolute() or path.suffix.lower() not in (".apk", ".apkm"):
+            raise ValueError("APKM path must be an absolute .apk or .apkm path")
+        return str(path)
+
+
 class TaskSubmitResponse(BaseModel):
     task_id: str
     status: str
@@ -522,6 +538,23 @@ async def wrapper_status(
         raise HTTPException(status_code=502, detail="Wrapper returned invalid JSON") from exc
 
 
+@app.get("/api/wrapper/setup/status", tags=["wrapper"])
+async def wrapper_setup_status():
+    from amdl.wrapper_setup import get_wrapper_setup_manager
+
+    return await asyncio.to_thread(get_wrapper_setup_manager().status)
+
+
+@app.post("/api/wrapper/setup", status_code=202, tags=["wrapper"])
+async def wrapper_setup(request: WrapperSetupRequest):
+    from amdl.wrapper_setup import SetupBusy, get_wrapper_setup_manager
+
+    try:
+        return get_wrapper_setup_manager().start(request.apkm_path, request.replace_existing)
+    except SetupBusy as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @app.post("/api/wrapper/login", tags=["wrapper"])
 async def wrapper_login(request: WrapperLoginRequest):
     response = await _wrapper_request(
@@ -700,6 +733,15 @@ class PywebviewApi:
 
         result = self._window_ref[0].create_file_dialog(
             FileDialog.FOLDER,
+        )
+        return result[0] if result else None
+
+    def open_apkm(self, **kwargs) -> str | None:
+        from webview import FileDialog
+
+        result = self._window_ref[0].create_file_dialog(
+            FileDialog.OPEN,
+            file_types=("Apple Music package (*.apkm;*.apk)", "All files (*.*)"),
         )
         return result[0] if result else None
 
