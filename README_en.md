@@ -153,7 +153,7 @@ bash tools/stage-system.sh --arch x86_64
 docker compose up --build -d
 ```
 
-In the Windows AppleMusic Downloader desktop app, use `http://127.0.0.1`, decrypt host `127.0.0.1`, and port `10020`; Docker Desktop exposes the wrapper port to Windows.
+In the Windows AppleMusic Downloader desktop app, use `http://127.0.0.1`, decrypt host `127.0.0.1`, and port `10020`; Docker Desktop exposes the wrapper port to Windows. Windows CLI users use the same wrapper address and port, as long as the wrapper-v2 service in WSL2 is exposed to Windows.
 
 ### Sign In and Download
 

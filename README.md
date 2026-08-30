@@ -153,7 +153,7 @@ bash tools/stage-system.sh --arch x86_64
 docker compose up --build -d
 ```
 
-Windows 桌面版 AppleMusic Downloader 仍填写 `http://127.0.0.1`、解密主机 `127.0.0.1` 和端口 `10020`；Docker Desktop 会将端口提供给 Windows 本机。
+Windows 桌面版 AppleMusic Downloader 仍填写 `http://127.0.0.1`、解密主机 `127.0.0.1` 和端口 `10020`；Docker Desktop 会将端口提供给 Windows 本机。Windows CLI 用户也使用同样的 wrapper 地址和端口，前提是 WSL2 中的 wrapper-v2 已暴露到 Windows 本机。
 
 ### 在本项目中登录并下载
 
