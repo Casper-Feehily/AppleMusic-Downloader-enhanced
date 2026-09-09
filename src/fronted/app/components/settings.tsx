@@ -159,9 +159,9 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
     try {
       setWrapperStatus(await getWrapperStatus(form.wrapper_url));
       setAuthError("");
-    } catch {
+    } catch (error) {
       setWrapperStatus(null);
-      setAuthError(t("settings.wrapper_unreachable"));
+      setAuthError(error instanceof Error ? error.message : t("settings.wrapper_unreachable"));
     }
   }, [form.wrapper_url, t]);
 
@@ -263,9 +263,9 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
         setWrapperStatus(status);
         setAuthError("");
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         setWrapperStatus(null);
-        setAuthError(t("settings.wrapper_unreachable"));
+        setAuthError(error instanceof Error ? error.message : t("settings.wrapper_unreachable"));
       });
   }, [loaded, form.use_wrapper, form.wrapper_url, t]);
 

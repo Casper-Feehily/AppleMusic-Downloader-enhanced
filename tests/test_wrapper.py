@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,6 +27,23 @@ from amdl.task_manager import DownloadTask, TaskManager
 
 
 class WrapperRequestTests(unittest.IsolatedAsyncioTestCase):
+    async def test_local_wrapper_ignores_proxy_environment(self) -> None:
+        response = httpx.Response(200, json={
+            "version": "0.0.2",
+            "auth": {"state": "authenticated"},
+            "runtime": {"playback_ready": True},
+        })
+        # An unsupported proxy scheme makes an environment-trusting client fail
+        # before any request, even when curl can access the local Wrapper.
+        with (
+            patch.dict(os.environ, {"HTTP_PROXY": "unsupported://proxy.invalid:80", "NO_PROXY": "", "no_proxy": ""}),
+            patch.object(httpx.AsyncHTTPTransport, "handle_async_request", AsyncMock(return_value=response)) as send,
+        ):
+            status = await server.wrapper_status("http://127.0.0.1")
+        self.assertTrue(status["authenticated"])
+        self.assertTrue(status["playback_ready"])
+        self.assertEqual(str(send.call_args.args[0].url), "http://127.0.0.1/me")
+
     def test_auth_mode_and_local_address_validation(self) -> None:
         request = DownloadRequest(
             urls=["test"],

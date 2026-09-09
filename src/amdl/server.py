@@ -155,7 +155,10 @@ async def _wrapper_request(
     payload: dict | None = None,
 ) -> httpx.Response:
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0)) as client:
+        # Loopback Wrapper requests must not inherit external proxies or CA settings.
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0, connect=5.0), trust_env=False,
+        ) as client:
             return await client.request(method, f"{wrapper_url}{path}", json=payload)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="Wrapper is not reachable") from exc

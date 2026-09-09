@@ -236,7 +236,11 @@ export function useSubmitTask(onSuccess?: () => void) {
 export async function getWrapperStatus(wrapperUrl: string): Promise<WrapperStatus> {
   const params = new URLSearchParams({ wrapper_url: wrapperUrl });
   const response = await fetch(`/api/wrapper/status?${params.toString()}`);
-  if (!response.ok) throw new Error("wrapper unavailable");
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const detail = typeof body?.detail === "string" ? `: ${body.detail}` : "";
+    throw new Error(`HTTP ${response.status}${detail}`);
+  }
   return response.json() as Promise<WrapperStatus>;
 }
 
