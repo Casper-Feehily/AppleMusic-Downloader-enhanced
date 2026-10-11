@@ -249,12 +249,13 @@ async def _download_urls_async(
     )
     log.info("AppleMusicBaseInterface created, building AppleMusicInterface...")
     codec_priority = _song_codec_priority(codec_song)
+    song_iface = AppleMusicSongInterface(
+        base=base_iface,
+        synced_lyrics_format=synced_lyrics_format,
+        codec_priority=codec_priority,
+    )
     iface = AppleMusicInterface(
-        song=AppleMusicSongInterface(
-            base=base_iface,
-            synced_lyrics_format=synced_lyrics_format,
-            codec_priority=codec_priority,
-        ),
+        song=song_iface,
         music_video=AppleMusicMusicVideoInterface(base=base_iface, codec_priority=[codec_music_video]),
         uploaded_video=AppleMusicUploadedVideoInterface(base=base_iface, quality=quality_post),
     )
@@ -353,6 +354,32 @@ async def _download_urls_async(
         overwrite=overwrite, save_cover=save_cover, save_playlist=save_playlist,
         no_synced_lyrics=no_synced_lyrics, synced_lyrics_only=synced_lyrics_only,
     )
+    if use_wrapper:
+        parse_download_item = dl.parse_download_item
+
+        async def _parse_download_item(media):
+            if (
+                not media.error
+                and not media.partial
+                and media.media_metadata.get("type") in {"songs", "library-songs"}
+            ):
+                try:
+                    webplayback = await api.get_webplayback(
+                        media.media_id,
+                        media.is_library,
+                    )
+                    media.tags = await base_iface.get_tags_from_asset_info(
+                        webplayback["songList"][0]["assets"][0]["metadata"],
+                        media.lyrics.unsynced if media.lyrics else None,
+                        song_iface.use_album_date,
+                    )
+                except Exception:
+                    log.warning(
+                        "Localized metadata unavailable; using Wrapper metadata"
+                    )
+            return await parse_download_item(media)
+
+        dl.parse_download_item = _parse_download_item  # type: ignore[assignment]
     log.info("AppleMusicDownloader ready, starting parse...")
 
     # ── parse → download ────────────────────────────────
@@ -361,8 +388,8 @@ async def _download_urls_async(
     for url in urls:
         log.info('Parsing "%s"', url)
         try:
-            async for it in dl.get_download_item_from_url(url):
-                items.append(it)
+            async for item in dl.get_download_item_from_url(url):
+                items.append(item)
         except Exception as e:
             errors += 1
             log.error('Failed to parse "%s": %s', url, e, exc_info=not no_exceptions)

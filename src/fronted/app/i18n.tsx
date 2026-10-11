@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 // ── 翻译键 ──────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ const zh: Record<string, string> = {
   "settings.cover": "封面格式",
   "settings.cover_size": "封面尺寸",
   "settings.mode": "下载模式",
-  "settings.language": "语言",
+  "settings.language": "元数据语言",
   "settings.overwrite": "覆盖已存在文件",
   "settings.save_cover": "保存封面",
   "settings.save_playlist": "保存播放列表",
@@ -186,7 +186,7 @@ const en: Record<string, string> = {
   "settings.cover": "Cover Format",
   "settings.cover_size": "Cover Size",
   "settings.mode": "Download Mode",
-  "settings.language": "Language",
+  "settings.language": "Metadata Language",
   "settings.overwrite": "Overwrite existing files",
   "settings.save_cover": "Save cover image",
   "settings.save_playlist": "Save playlist",
@@ -318,29 +318,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return "zh";
   });
 
-  // 启动时从后端恢复 locale（覆盖 localStorage）
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.language && data.language !== locale) {
-          setLocale(data.language === "zh-CN" ? "zh" : "en");
-        }
-      })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const changeLocale = useCallback((l: string) => {
     setLocale(l);
     localStorage.setItem("amdl_locale", l);
-    // 同步到后端
-    fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ language: l === "zh" ? "zh-CN" : "en-US" }),
-    }).catch(() => {});
   }, []);
 
   const t = useCallback(
