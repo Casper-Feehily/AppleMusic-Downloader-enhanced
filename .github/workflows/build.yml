@@ -45,6 +45,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ".[desktop]"
 
+      - name: Python regression tests
+        run: python -m unittest discover -s tests -v
+
       - name: Install frontend deps
         working-directory: src/fronted
         run: npm ci
@@ -56,6 +59,34 @@ jobs:
       - name: TypeScript check
         working-directory: src/fronted
         run: npx tsc --noEmit
+
+  # ─────────────────────────────────────────────────────────────
+  # CLI wheel and source distribution
+  # ─────────────────────────────────────────────────────────────
+  cli:
+    name: Build CLI package
+    needs: [lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Build and validate CLI distributions
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+          python -m pip install dist/*.whl
+          amdl --version
+          amdl --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: applemusic-dl-cli
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────
   # Build matrix: macOS · Windows
@@ -150,7 +181,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   release:
     name: Create Release
-    needs: [build]
+    needs: [build, cli]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
 

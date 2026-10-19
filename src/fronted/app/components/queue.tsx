@@ -114,9 +114,15 @@ function TaskRow({
   const [copied, setCopied] = useState(false);
   const progress = task.progress as Record<string, number>;
   const { completed = 0, total = 0, percent } = progress;
+  const isParsing = task.status === "running" && task.phase === "parsing";
+  const parsing = task.parsing;
+  const parsed = parsing?.completed ?? 0;
+  const parseTotal = parsing?.total ?? 0;
   const pct = task.status === "completed"
     ? 1
-    : total > 0
+    : isParsing
+      ? (parseTotal > 0 ? Math.min(parsed / parseTotal, 1) : 0)
+      : total > 0
       ? (percent ?? (completed / total * 100)) / 100
       : 0;
   const isRunning = task.status === "running" || task.status === "pending";
@@ -144,17 +150,37 @@ function TaskRow({
               {task.urls.length > 1 && ` (+${task.urls.length - 1})`}
             </p>
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium ${statusColor(task.status)}`}>
-              {t(`status.${task.status}`)}
+              {isParsing ? t("queue.parsing") : t(`status.${task.status}`)}
             </span>
           </div>
-          {pct > 0 && (
-            <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full" style={{ background: "var(--card-border)" }}>
+          {isParsing && (
+            <div className="mt-1.5 text-[10.5px]" style={{ color: "var(--text-dim)" }} aria-live="polite">
+              <p>
+                {parseTotal > 0
+                  ? t("queue.parse_progress", { completed: parsed, total: parseTotal, percent: Math.round(pct * 100) })
+                  : parsed > 0
+                    ? t("queue.parse_count", { completed: parsed })
+                    : t("queue.fetching_metadata")}
+              </p>
+              {parsing?.current_title && (
+                <p className="mt-0.5 truncate" title={parsing.current_title}>
+                  {t("queue.resolving", { title: parsing.current_title })}
+                </p>
+              )}
+            </div>
+          )}
+          {(pct > 0 || isParsing) && (
+            <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full" style={{ background: "var(--card-border)" }}
+              role="progressbar" aria-label={isParsing ? t("queue.parsing") : t("queue.downloading")}
+              aria-valuemin={0} aria-valuemax={100}
+              aria-valuenow={isParsing && parseTotal === 0 ? undefined : Math.round(pct * 100)}>
               <div
                 className={[
                   "h-full transition-all duration-300",
-                  task.status === "completed" ? "bg-green-500" : "bg-blue-500",
+                  task.status === "completed" ? "bg-green-500" : isParsing ? "bg-amber-500" : "bg-blue-500",
+                  isParsing && parseTotal === 0 ? "animate-pulse" : "",
                 ].join(" ")}
-                style={{ width: `${Math.round(pct * 100)}%` }}
+                style={{ width: isParsing && parseTotal === 0 ? "30%" : `${Math.round(pct * 100)}%` }}
               />
             </div>
           )}

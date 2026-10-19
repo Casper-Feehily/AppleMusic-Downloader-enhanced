@@ -92,10 +92,30 @@ def main() -> None:
 
 
 def _passthrough_to_gamdl(args: list[str]) -> None:
-    """Forward arguments to gamdl CLI."""
-    from gamdl.cli.cli import main as gamdl_main
-    sys.argv = ["gamdl", *args]
-    gamdl_main()
+    """Keep gamdl's CLI options and add per-track metadata progress."""
+    from types import SimpleNamespace
+
+    from gamdl.cli import cli as gamdl_cli
+    from amdl.core_downloader import _parse_items_with_progress
+
+    original_downloader = gamdl_cli.AppleMusicDownloader
+    original_argv = sys.argv
+
+    class ProgressDownloader(original_downloader):
+        async def get_download_item_from_url(self, url):
+            source = SimpleNamespace(get_download_item_from_url=super().get_download_item_from_url)
+            log = gamdl_cli.logger.bind(action="Parsing")
+            log.info("Fetching song or playlist information…")
+            async for item in _parse_items_with_progress(source, url, log):
+                yield item
+
+    try:
+        gamdl_cli.AppleMusicDownloader = ProgressDownloader
+        sys.argv = ["gamdl", *args]
+        gamdl_cli.main()
+    finally:
+        gamdl_cli.AppleMusicDownloader = original_downloader
+        sys.argv = original_argv
 
 
 _HELP = f"""\

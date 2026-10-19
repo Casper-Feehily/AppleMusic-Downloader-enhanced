@@ -171,6 +171,9 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
         self,
         *,
         webplayback_error: Exception | None = None,
+        include_partial: bool = False,
+        progress_callback=None,
+        parse_progress_callback=None,
     ) -> tuple[int, list[str], list[str]]:
         media = SimpleNamespace(
             error=None,
@@ -191,12 +194,16 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
 
         class FakeDownloader:
             async def get_download_item_from_url(self, _url):
+                if include_partial:
+                    media.partial = True
+                    yield await self.parse_download_item(media)
+                    media.partial = False
                 yield await self.parse_download_item(media)
 
             async def parse_download_item(self, parsed_media):
                 return SimpleNamespace(
                     media=parsed_media,
-                    final_path=Path(f"/tmp/{parsed_media.tags.title}.m4a"),
+                    final_path=None if parsed_media.partial else Path(f"/tmp/{parsed_media.tags.title}.m4a"),
                 )
 
             async def download(self, item):
@@ -253,9 +260,25 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
                 codec_song=SongCodec.ALAC,
                 language="ja-JP",
                 log_callback=logs.append,
+                progress_callback=progress_callback,
+                parse_progress_callback=parse_progress_callback,
             )
 
         return errors, downloaded, logs
+
+    async def test_parse_and_download_counts_exclude_partial_items(self) -> None:
+        downloads = []
+        parses = []
+        errors, files, _ = await self._run_wrapper_tag_case(
+            include_partial=True,
+            progress_callback=lambda *update: downloads.append(update),
+            parse_progress_callback=lambda *update: parses.append(update),
+        )
+        self.assertEqual(errors, 0)
+        self.assertEqual(len(files), 1)
+        self.assertEqual(downloads, [(0, 1), (1, 1)])
+        self.assertEqual(parses[0], (0, None, ""))
+        self.assertEqual(parses[-1][0], 1)
 
     def test_gamdl_debug_logs_are_capped_at_info(self) -> None:
         sentinel = object()

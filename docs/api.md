@@ -194,6 +194,14 @@ List all tasks (newest first).
 
 **Task status values:** `pending`, `running`, `completed`, `failed`, `cancelled`
 
+Tasks also include `phase` (`pending`, `parsing`, or `downloading`) and a
+separate `parsing` object, for example
+`{"completed": 98, "total": 335, "current_title": "I Still..."}`.
+`parsing.total` is `null` until the collection size is known. Parse counts reset
+for each input URL or child album and include tracks that could not be resolved. The existing
+`progress` object counts downloaded files only. Terminal task `status` takes
+precedence over the last active phase.
+
 ---
 
 ### GET /api/tasks/{task_id}
@@ -241,6 +249,9 @@ Connect after submitting a task via `POST /api/tasks`.
 
 // Progress update
 {"type": "progress", "completed": 5, "total": 10, "percent": 50.0}
+
+// Metadata parsing (separate from file download progress)
+{"type": "parsing", "phase": "parsing", "parsing": {"completed": 98, "total": 335, "current_title": "I Still..."}}
 
 // Status change
 {"type": "status", "status": "completed", "message": "Done"}

@@ -18,7 +18,7 @@ The project offers two usage modes:
 
 | Mode | Use Case |
 |------|----------|
-| **CLI** | Terminal users, install via `pip install applemusic-dl` |
+| **CLI** | Terminal users, install the CLI package from GitHub Releases |
 | **Desktop App** | General users, download the packaged installer and run |
 
 ---
@@ -54,8 +54,10 @@ This project is based on [wenfeng110402/AppleMusic-Downloader](https://github.co
 ### Method 1: pip install (recommended)
 
 ```bash
-pip install applemusic-dl
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.12/applemusic_dl-2.4.12-py3-none-any.whl"
 ```
+
+This fork publishes CLI packages with GitHub Releases; the same-named package on PyPI belongs to the upstream project.
 
 Use the `amdl` command directly after installation:
 
@@ -66,7 +68,7 @@ amdl --help
 For desktop GUI mode, install with desktop dependencies:
 
 ```bash
-pip install "applemusic-dl[desktop]"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.12/applemusic_dl-2.4.12-py3-none-any.whl"
 ```
 
 ### Method 2: Desktop installers
@@ -82,7 +84,7 @@ Windows and Apple Silicon macOS installers bundle FFmpeg, so no first-launch dow
 
 ```bash
 git clone https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced.git
-cd AppleMusic-Downloader
+cd AppleMusic-Downloader-enhanced
 pip install -e ".[desktop]"
 ```
 

@@ -70,6 +70,8 @@ class DownloadTask:
         self.kwargs = kwargs  # arguments to pass to download_urls
         self.status = TaskStatus.PENDING
         self.progress: tuple[int, int] = (0, 0)  # (completed, total)
+        self.phase: str = "pending"
+        self.parsing: dict = {"completed": 0, "total": None, "current_title": ""}
         self.error_count: int = 0
         self.message: str = ""
         self.logs: list[str] = []
@@ -95,6 +97,8 @@ class DownloadTask:
         return {
             "id": self.id,
             "status": self.status.value,
+            "phase": self.phase,
+            "parsing": self.parsing.copy(),
             "progress": {
                 "completed": completed,
                 "total": total,
@@ -252,7 +256,21 @@ class TaskManager:
             if task.cancelled:
                 raise asyncio.CancelledError("Task cancelled")
             task.progress = (completed, total)
+            task.phase = "downloading"
+            task.updated_at = datetime.now(timezone.utc).isoformat()
             await self._broadcast_progress(task_id, completed, total)
+
+        async def on_parse_progress(completed: int, total: int | None, title: str):
+            if task.cancelled:
+                raise asyncio.CancelledError("Task cancelled")
+            task.phase = "parsing"
+            task.parsing = {"completed": completed, "total": total, "current_title": title}
+            task.updated_at = datetime.now(timezone.utc).isoformat()
+            await self._send_to_subscribers(task, {
+                "type": "parsing", "task_id": task_id,
+                "phase": task.phase, "parsing": task.parsing.copy(),
+                "updated_at": task.updated_at,
+            })
 
         def on_log(msg: str):
             task.append_log(msg)
@@ -316,6 +334,7 @@ class TaskManager:
                 log_callback=on_log,
                 log_level=kwargs.get("log_level", "INFO"),
                 progress_callback=on_progress,
+                parse_progress_callback=on_parse_progress,
             )
         except asyncio.CancelledError:
             raise
@@ -345,6 +364,7 @@ class TaskManager:
         message = {
             "type": "progress",
             "task_id": task_id,
+            "phase": task.phase,
             "completed": completed,
             "total": total,
             "percent": round(completed / total * 100, 1) if total > 0 else 0,
@@ -357,6 +377,8 @@ class TaskManager:
             "type": "status",
             "task_id": task.id,
             "status": task.status.value,
+            "phase": task.phase,
+            "parsing": task.parsing.copy(),
             "progress": {
                 "completed": completed,
                 "total": total,
@@ -398,6 +420,8 @@ class TaskManager:
                 "type": "subscribed",
                 "task_id": task_id,
                 "status": task.status.value,
+                "phase": task.phase,
+                "parsing": task.parsing.copy(),
                 "progress": {
                     "completed": completed,
                     "total": total,

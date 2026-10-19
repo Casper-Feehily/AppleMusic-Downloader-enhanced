@@ -222,7 +222,9 @@ done
 # Platform-specific flags
 case "$PLATFORM" in
   macos)
-    PYI_ARGS+=(--windowed --onedir --codesign-identity "-")
+    # Leaving the identity unset uses ad-hoc signing without hardened runtime.
+    # An explicit '-' enables hardened runtime and prevents Python from loading.
+    PYI_ARGS+=(--windowed --onedir)
     # macOS code signing identity (optional, set via env)
     if [[ -n "${APPLE_SIGN_IDENTITY:-}" ]]; then
       PYI_ARGS+=(--codesign-identity "$APPLE_SIGN_IDENTITY")

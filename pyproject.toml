@@ -23,8 +23,8 @@ desktop = [
 ]
 
 [project.urls]
-homepage = "https://github.com/wenfeng110402/AppleMusic-Downloader"
-repository = "https://github.com/wenfeng110402/AppleMusic-Downloader"
+homepage = "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced"
+repository = "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced"
 
 [build-system]
 requires = ["flit_core"]

@@ -12,6 +12,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
     permissions:
       contents: read
 
@@ -84,6 +86,12 @@ jobs:
           "
 
       - name: Publish to PyPI
+        if: env.PYPI_API_TOKEN != ''
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Explain unconfigured PyPI publishing
+        if: env.PYPI_API_TOKEN == ''
+        run: |
+          echo "PyPI publishing skipped: this repository has no PYPI_API_TOKEN. Install this fork's CLI wheel from GitHub Releases." >> "$GITHUB_STEP_SUMMARY"

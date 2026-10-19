@@ -31,6 +31,12 @@ export interface FormState {
 export interface TaskInfo {
   id: string;
   status: string;
+  phase?: string;
+  parsing?: {
+    completed: number;
+    total: number | null;
+    current_title: string;
+  };
   progress: Record<string, unknown>;
   error_count: number;
   message: string;

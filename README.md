@@ -18,7 +18,7 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 
 | 方式                 | 适用场景                                                 |
 | -------------------- | -------------------------------------------------------- |
-| **CLI 命令行** | 终端用户，通过`pip install applemusic-dl` 安装即可使用 |
+| **CLI 命令行** | 终端用户，使用 GitHub Release 中的 CLI 安装包 |
 | **桌面应用**   | 普通用户，下载打包好的安装程序直接使用                   |
 
 ---
@@ -54,8 +54,10 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 ### 方式一：pip 安装（推荐）
 
 ```bash
-pip install applemusic-dl
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.12/applemusic_dl-2.4.12-py3-none-any.whl"
 ```
+
+本增强版的 CLI 安装包随 GitHub Release 发布；PyPI 上的同名包属于原项目。
 
 安装后可直接使用 `amdl` 命令：
 
@@ -66,7 +68,7 @@ amdl --help
 如果需要桌面 GUI 模式，请安装带桌面依赖的版本：
 
 ```bash
-pip install "applemusic-dl[desktop]"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.12/applemusic_dl-2.4.12-py3-none-any.whl"
 ```
 
 ### 方式二：桌面安装包
@@ -82,7 +84,7 @@ Windows 与 Apple Silicon macOS 安装包已内置 FFmpeg，无需首次启动�
 
 ```bash
 git clone https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced.git
-cd AppleMusic-Downloader
+cd AppleMusic-Downloader-enhanced
 pip install -e ".[desktop]"
 ```
 

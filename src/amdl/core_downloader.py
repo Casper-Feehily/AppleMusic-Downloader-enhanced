@@ -47,6 +47,50 @@ from gamdl.interface import (
 )
 
 LogCallback = Callable[[str], None]
+ParseProgressCallback = Callable[[int, int | None, str], object]
+
+
+async def _parse_items_with_progress(dl, url: str, log, callback=None):
+    """Report metadata resolution separately from completed file downloads."""
+    completed = 0
+    total = None
+    collection_types = {"playlists", "library-playlists", "albums", "library-albums", "artists"}
+    # Retain objects so streaming CLI consumption cannot reuse a resolved id.
+    resolved_media: dict[int, object] = {}
+
+    async def report(title: str = ""):
+        if callback:
+            result = callback(completed, total, title)
+            if asyncio.iscoroutine(result):
+                await result
+
+    await report()
+    async for item in dl.get_download_item_from_url(url):
+        media = item.media
+        metadata = media.media_metadata if isinstance(media.media_metadata, dict) else {}
+        media_type = metadata.get("type")
+        if media_type in collection_types:
+            tracks = metadata.get("relationships", {}).get("tracks", {}).get("data")
+            if tracks is not None:
+                completed = 0
+                resolved_media.clear()
+                total = len(tracks)
+                log.info(f"Found {total} tracks; resolving metadata")
+                await report()
+        else:
+            if total is None:
+                total = getattr(media, "total", None) or None
+            title = metadata.get("attributes", {}).get("name", "?")
+            if media.partial:
+                log.info(f'Resolving track {completed + 1}/{total if total is not None else "?"}: "{title}"')
+                await report(title)
+            elif id(media) not in resolved_media:
+                resolved_media[id(media)] = media
+                completed += 1
+                suffix = " (unavailable)" if media.error else ""
+                log.info(f'Parsed {completed}/{total if total is not None else "?"}: "{title}"{suffix}')
+                await report(title)
+        yield item
 
 
 def _song_codec_priority(codec: SongCodec) -> list[SongCodec]:
@@ -184,6 +228,7 @@ async def _download_urls_async(
     log_callback: LogCallback | None = None,
     log_level: str = "INFO",
     progress_callback: Callable[[int, int], None] | None = None,
+    parse_progress_callback: ParseProgressCallback | None = None,
 ) -> int:
     log = _get_logger("amdl.core", log_level, log_callback)
     _configure_gamdl_logging(log_level)
@@ -388,17 +433,25 @@ async def _download_urls_async(
     for url in urls:
         log.info('Parsing "%s"', url)
         try:
-            async for item in dl.get_download_item_from_url(url):
+            async for item in _parse_items_with_progress(dl, url, log, parse_progress_callback):
                 items.append(item)
         except Exception as e:
             errors += 1
             log.error('Failed to parse "%s": %s', url, e, exc_info=not no_exceptions)
 
-    total = len(items) or 1
+    total = sum(
+        1 for item in items
+        if not item.media.error and not item.media.partial and item.final_path
+    )
     completed = 0
     done_files: list[str] = []
     seen_error_media: set[int] = set()
     _normalize_playlist_tracks(items)
+
+    if progress_callback:
+        r = progress_callback(0, total)
+        if asyncio.iscoroutine(r):
+            await r
 
     for item in items:
         if item.media.error:

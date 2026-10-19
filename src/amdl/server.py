@@ -353,6 +353,8 @@ class TaskSubmitResponse(BaseModel):
 class TaskInfoResponse(BaseModel):
     id: str
     status: str
+    phase: str = "pending"
+    parsing: dict = Field(default_factory=dict)
     progress: dict
     error_count: int
     message: str
