@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced)
-![GitHub License](https://img.shields.io/github/license/Casper-Feehily/AppleMusic-Downloader-enhanced?style=social)
+[![License: GPL v3 or later](https://img.shields.io/badge/License-GPLv3%2B-blue.svg)](LICENSE)
 
 - [Chinese README](README.md)
 
@@ -45,6 +45,7 @@ This project is based on [wenfeng110402/AppleMusic-Downloader](https://github.co
 - [Requirements](#requirements)
 - [Supported Link Types](#supported-link-types)
 - [Project Structure](#project-structure)
+- [License](#license)
 - [Disclaimer](#disclaimer)
 
 ---
@@ -327,6 +328,16 @@ AppleMusic-Downloader/
 ├── requirements.txt
 └── README.md
 ```
+
+---
+
+## License
+
+This project is licensed under the **GNU General Public License, version 3 or later (GPL-3.0-or-later)**. You may redistribute and modify it under the terms of the GNU GPL as published by the Free Software Foundation, either version 3 or, at your option, any later version. See [LICENSE](LICENSE) for the full terms.
+
+This project is distributed without any warranty, including the implied warranties of merchantability or fitness for a particular purpose. See the GNU GPL for details.
+
+The upstream code's original Unlicense notice is preserved in [LICENSE-UNLICENSE](LICENSE-UNLICENSE). Third-party code and dependencies remain subject to their respective licenses.
 
 ---
 

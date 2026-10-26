@@ -197,6 +197,8 @@ fi
 PYI_ARGS=(
   --name "$APP_NAME"
   --add-data "src/fronted/out${SEP}frontend_out"
+  --add-data "LICENSE${SEP}."
+  --add-data "LICENSE-UNLICENSE${SEP}."
   --add-data "icon.ico${SEP}."
   --add-data "icon.png${SEP}."
   --add-data "icon.icns${SEP}."

@@ -15,6 +15,8 @@ dependencies = [
     "certifi",
 ]
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "LICENSE-UNLICENSE"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -27,7 +29,7 @@ homepage = "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced"
 repository = "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced"
 
 [build-system]
-requires = ["flit_core"]
+requires = ["flit_core>=3.11,<5"]
 build-backend = "flit_core.buildapi"
 
 [project.scripts]

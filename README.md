@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![Platform](<https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey>)](https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced)
-![GitHub License](https://img.shields.io/github/license/Casper-Feehily/AppleMusic-Downloader-enhanced?style=social)
+[![License: GPL v3 or later](https://img.shields.io/badge/License-GPLv3%2B-blue.svg)](LICENSE)
 
 - [English README](README_en.md)
 
@@ -45,6 +45,7 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 - [环境要求](#环境要求)
 - [支持的链接类型](#支持的链接类型)
 - [项目结构](#项目结构)
+- [许可证](#许可证)
 - [免责声明](#免责声明)
 
 ---
@@ -317,6 +318,16 @@ AppleMusic-Downloader/
 ├── requirements.txt
 └── README.md
 ```
+
+---
+
+## 许可证
+
+本项目采用 **GNU 通用公共许可证第 3 版或更新版本（GPL-3.0-or-later）**。你可以按照自由软件基金会发布的 GPL 第 3 版，或自行选择的任何更新版本，重新分发和修改本项目。完整条款见 [LICENSE](LICENSE)。
+
+本项目不提供任何担保，包括适销性或特定用途适用性的默示担保，详见 GPL 条款。
+
+上游原始代码的 Unlicense 声明保留在 [LICENSE-UNLICENSE](LICENSE-UNLICENSE)。第三方代码和依赖组件仍适用各自的许可证。
 
 ---
 
