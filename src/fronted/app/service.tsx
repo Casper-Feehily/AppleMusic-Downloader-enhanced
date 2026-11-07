@@ -180,7 +180,7 @@ export function useBackendStatus() {
 // ── 提交下载任务 ──────────────────────────────────────────────
 
 export function useSubmitTask(onSuccess?: () => void) {
-  return async (form: FormState) => {
+  return async (form: FormState, existingLibraryPath = "") => {
     const urlList = form.urls.split("\n").map((s) => s.trim()).filter(Boolean);
     if (urlList.length === 0) return false;
     if (!form.use_wrapper && !form.cookies_path.trim()) {
@@ -196,6 +196,7 @@ export function useSubmitTask(onSuccess?: () => void) {
       wrapper_decrypt_host: form.wrapper_decrypt_host.trim(),
       wrapper_decrypt_port: form.wrapper_decrypt_port,
       output_path: form.output_path.trim(),
+      existing_library_path: existingLibraryPath.trim() || null,
       temp_path: form.temp_path.trim(),
       ffmpeg_path: form.ffmpeg_path.trim(),
       nm3u8dlre_path: form.nm3u8dlre_path.trim(),

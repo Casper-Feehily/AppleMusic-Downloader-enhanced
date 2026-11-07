@@ -105,6 +105,7 @@ Submit a download task.
   "wrapper_decrypt_port": 10020,
 
   "output_path": "./Apple Music",
+  "existing_library_path": null,
   "temp_path": "./temp",
   "ffmpeg_path": "ffmpeg",
   "nm3u8dlre_path": "N_m3u8DL-RE",
@@ -131,6 +132,8 @@ Submit a download task.
 **Required fields:** `urls`. `cookies_path` is required only when `use_wrapper=false` (the API-compatible default). ALAC requires `use_wrapper=true`. Wrapper HTTP and decrypt hosts must be local loopback addresses.
 
 **Optional fields with defaults shown above.** Omit or pass `null` for defaults.
+
+Set `existing_library_path` to an existing directory on the server to skip songs found there or in its subdirectories. The task matches Apple Music song IDs or embedded title, artist, and album tags. Missing songs still go to `output_path`.
 
 **Enum values:**
 

@@ -242,6 +242,8 @@ python -m amdl
 
 The desktop app is built on pywebview and works on Windows, macOS, and Linux.
 
+To download updates to a playlist, choose your previous download folder under **Incremental download**. The app checks song tags in that folder and its subfolders, skips songs it finds, and saves missing songs to **Output Folder**. Both fields can point to the same folder. Clear the incremental folder to use regular downloading.
+
 > **🐧 Linux users**: pywebview on Linux requires Qt WebEngine. Before launching desktop mode, install the system dependencies:
 > ```bash
 > sudo apt update && sudo apt install -y python3-pyqt5 python3-pyqt5.qtwebengine libqt5webkit5-dev

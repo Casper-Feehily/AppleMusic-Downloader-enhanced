@@ -36,6 +36,7 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
   const { t, locale } = useI18n();
   const submitTask = useSubmitTask();
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const [existingLibraryPath, setExistingLibraryPath] = useState("");
   const [hover, setHover] = useState(false);
   const [wrapperStatus, setWrapperStatus] = useState<WrapperStatus | null>(null);
 
@@ -112,7 +113,7 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
     }
     // 直接用当前 form 的全部状态提交，无需读 localStorage
     // form 已在 useEffect 中从 /api/settings 加载，set() 实时更新
-    const submitted = await submitTask(form);
+    const submitted = await submitTask(form, existingLibraryPath);
     if (!submitted) return;
     // 提交成功后清空暂存
     sessionStorage.removeItem("amdl_pending_urls");
@@ -135,13 +136,11 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
     }
   };
 
-  const browseFolder = () => {
-    if (window.pywebview?.api) {
-      window.pywebview.api.open_folder().then((path: string) => { if (path) set("output_path", path); });
-    } else {
-      const p = prompt("Output folder path:");
-      if (p) set("output_path", p);
-    }
+  const browseFolder = async (onSelect: (path: string) => void, label: string) => {
+    const path = window.pywebview?.api
+      ? await window.pywebview.api.open_folder()
+      : prompt(label);
+    if (path) onSelect(path);
   };
 
   return (
@@ -253,10 +252,33 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
               value={form.output_path}
               onChange={(e) => set("output_path", e.target.value)}
             />
-            <button className="btn-secondary shrink-0 text-[11px]" onClick={browseFolder}>
+            <button className="btn-secondary shrink-0 text-[11px]" onClick={() => browseFolder((path) => set("output_path", path), t("download.output"))}>
               {t("download.output.browse")}
             </button>
           </div>
+          <label htmlFor="existing-library" className="block pt-1 text-[10.5px] font-medium" style={{ color: "var(--text-dim)" }}>
+            {t("download.existing_library")}
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="existing-library"
+              className="input"
+              aria-describedby="existing-library-hint"
+              placeholder={t("download.existing_library.folder")}
+              value={existingLibraryPath}
+              onChange={(e) => setExistingLibraryPath(e.target.value)}
+            />
+            <button
+              className="btn-secondary shrink-0 text-[11px]"
+              aria-label={t("download.existing_library.browse")}
+              onClick={() => browseFolder(setExistingLibraryPath, t("download.existing_library.folder"))}
+            >
+              {t("download.output.browse")}
+            </button>
+          </div>
+          <p id="existing-library-hint" className="text-[10.5px]" style={{ color: "var(--text-dim)" }}>
+            {t("download.existing_library.hint")}
+          </p>
         </div>
 
         {/* ── Source quality ── */}

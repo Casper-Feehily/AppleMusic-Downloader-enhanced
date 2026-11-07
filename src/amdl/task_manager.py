@@ -285,6 +285,11 @@ class TaskManager:
                 p = Path(val)
                 kwargs[key] = p if p.is_absolute() else _data_dir / val
 
+        library_path = kwargs.get("existing_library_path")
+        if isinstance(library_path, str):
+            library_path = library_path.strip()
+            library_path = _data_dir / Path(library_path).expanduser() if library_path else None
+
         wvd = kwargs.get("wvd_path")
         if isinstance(wvd, str) and wvd:
             p = Path(wvd)
@@ -299,6 +304,7 @@ class TaskManager:
                 wrapper_decrypt_host=kwargs.get("wrapper_decrypt_host", "127.0.0.1"),
                 wrapper_decrypt_port=kwargs.get("wrapper_decrypt_port", 10020),
                 output_path=kwargs.get("output_path", Path("./Apple Music")),
+                existing_library_path=library_path,
                 temp_path=kwargs.get("temp_path", Path("./temp")),
                 wvd_path=kwargs.get("wvd_path"),
                 nm3u8dlre_path=kwargs.get("nm3u8dlre_path", "N_m3u8DL-RE"),

@@ -190,6 +190,7 @@ class DownloadRequest(BaseModel):
     wrapper_decrypt_host: str = Field(default="127.0.0.1")
     wrapper_decrypt_port: int = Field(default=10020, ge=1, le=65535)
     output_path: str = Field(default="./Apple Music")
+    existing_library_path: str | None = Field(default=None)
     temp_path: str = Field(default="./temp")
     wvd_path: str | None = Field(default=None)
     nm3u8dlre_path: str = Field(default="N_m3u8DL-RE")

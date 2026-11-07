@@ -5,6 +5,7 @@ requires-python = ">=3.10"
 authors = [{ name = "wenfeng110402" }]
 dependencies = [
     "gamdl~=3.8.5",
+    "mutagen>=1.47.0",
     "click>=8.0",
     "colorama",
     "pillow",

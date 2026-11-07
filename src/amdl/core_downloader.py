@@ -46,6 +46,8 @@ from gamdl.interface import (
     UploadedVideoQuality,
 )
 
+from amdl.existing_library import ExistingLibrary, write_existing_playlist_entry
+
 LogCallback = Callable[[str], None]
 ParseProgressCallback = Callable[[int, int | None, str], object]
 
@@ -193,6 +195,7 @@ async def _download_urls_async(
     wrapper_decrypt_host: str = "127.0.0.1",
     wrapper_decrypt_port: int = 10020,
     output_path: Path = Path("./Apple Music"),
+    existing_library_path: Path | None = None,
     temp_path: Path = Path("./temp"),
     wvd_path: Path | None = None,
     nm3u8dlre_path: str = "N_m3u8DL-RE",
@@ -248,6 +251,16 @@ async def _download_urls_async(
         cookies_path = cookies_path.resolve()
     if wvd_path:
         wvd_path = wvd_path.resolve()
+
+    existing_library = None
+    if existing_library_path is not None and not synced_lyrics_only:
+        try:
+            library_path = existing_library_path.expanduser().resolve()
+            log.info("Scanning existing library: %s", library_path)
+            existing_library = await asyncio.to_thread(ExistingLibrary, library_path)
+        except (OSError, RuntimeError) as e:
+            log.error("Could not scan existing library: %s", e)
+            return 1
 
     # ── txt expansion ───────────────────────────────────
     if read_urls_as_txt:
@@ -444,6 +457,7 @@ async def _download_urls_async(
         if not item.media.error and not item.media.partial and item.final_path
     )
     completed = 0
+    library_skipped = 0
     done_files: list[str] = []
     seen_error_media: set[int] = set()
     _normalize_playlist_tracks(items)
@@ -468,36 +482,41 @@ async def _download_urls_async(
             continue
 
         title = item.media.media_metadata.get("attributes", {}).get("name", "?") if isinstance(item.media.media_metadata, dict) else "?"
-        actual_codec = getattr(
-            getattr(getattr(item.media, "stream_info", None), "audio_track", None),
-            "codec",
-            None,
-        )
-        if codec_song == SongCodec.ALAC and actual_codec and not _is_alac_codec(actual_codec):
-            log.warning(
-                'WARNING: ALAC unavailable for "%s"; falling back to AAC (%s)',
-                title,
-                actual_codec,
-            )
-        log.info('Downloading "%s"', title)
+        existing_file = existing_library.find(item.media) if existing_library else None
         try:
-            await dl.download(item)
-            completed += 1
-            done_files.append(str(item.final_path))
-            if progress_callback:
-                r = progress_callback(completed, total)
-                if asyncio.iscoroutine(r):
-                    await r
+            if existing_file:
+                if save_playlist and item.playlist_file_path:
+                    write_existing_playlist_entry(
+                        Path(item.playlist_file_path), item.media.playlist_tags.track, existing_file,
+                    )
+                library_skipped += 1
+                log.info('Skipped "%s": already in existing library (%s)', title, existing_file)
+            else:
+                actual_codec = getattr(
+                    getattr(getattr(item.media, "stream_info", None), "audio_track", None),
+                    "codec",
+                    None,
+                )
+                if codec_song == SongCodec.ALAC and actual_codec and not _is_alac_codec(actual_codec):
+                    log.warning(
+                        'WARNING: ALAC unavailable for "%s"; falling back to AAC (%s)',
+                        title,
+                        actual_codec,
+                    )
+                log.info('Downloading "%s"', title)
+                await dl.download(item)
+                done_files.append(str(item.final_path))
         except GamdlDownloaderMediaFileExistsError:
-            completed += 1
             log.info('Skipped "%s": exists', title)
-            if progress_callback:
-                r = progress_callback(completed, total)
-                if asyncio.iscoroutine(r):
-                    await r
         except Exception as e:
             errors += 1
             log.error('Failed "%s": %s\n%s', title, e, traceback.format_exc())
+            continue
+        completed += 1
+        if progress_callback:
+            r = progress_callback(completed, total)
+            if asyncio.iscoroutine(r):
+                await r
 
     # ── format conversion ───────────────────────────────
     effective_audio_format = None if codec_song == SongCodec.ALAC else audio_format
@@ -512,5 +531,7 @@ async def _download_urls_async(
         except Exception as e:
             log.error("Conversion failed: %s", e, exc_info=not no_exceptions)
 
+    if existing_library is not None:
+        log.info("Skipped %d song(s) already in the existing library", library_skipped)
     log.info("Done (%d error(s))", errors)
     return errors
