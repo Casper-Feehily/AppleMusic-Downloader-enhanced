@@ -7,6 +7,7 @@ Download URLs point to well-known static builds — no build tools needed.
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 import platform
@@ -61,6 +62,30 @@ BIN_DIR = _DATA_DIR / "bin"
 
 # Public alias — used by server.py for settings / temp
 DATA_DIR = _DATA_DIR
+
+_SYSTEM_BIN_DIRS: list[str] = [
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    "/usr/local/bin",
+    "/usr/local/sbin",
+    "/home/linuxbrew/.linuxbrew/bin",
+]
+
+
+def _init_env_path() -> None:
+    """Expose downloaded, bundled and Homebrew binaries to child processes."""
+    current_paths = os.environ.get("PATH", "").split(os.pathsep)
+    paths_to_add = [str(BIN_DIR)]
+    bundle = _bundle_dir()
+    if bundle:
+        paths_to_add.append(str(bundle / "bin"))
+    if sys.platform != "win32":
+        for p in _SYSTEM_BIN_DIRS:
+            if Path(p).is_dir() and p not in current_paths:
+                paths_to_add.append(p)
+    new_paths = [p for p in paths_to_add if p not in current_paths]
+    if new_paths:
+        os.environ["PATH"] = os.pathsep.join(new_paths) + os.pathsep + os.environ.get("PATH", "")
 
 
 # ── helpers ──────────────────────────────────────────────────
@@ -137,6 +162,9 @@ def _bundle_dir() -> Path | None:
     return None
 
 
+_init_env_path()
+
+
 # ── URL builders per platform ────────────────────────────────
 
 _FFMPEG_RELEASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
@@ -156,9 +184,9 @@ def find_system_binary(name: str) -> str | None:
     found = shutil.which(_exe(name))
     if found:
         return found
-    if _os() == "macos":
-        for prefix in (Path("/opt/homebrew/bin"), Path("/usr/local/bin")):
-            candidate = prefix / _exe(name)
+    if _os() != "windows":
+        for prefix in _SYSTEM_BIN_DIRS:
+            candidate = Path(prefix) / _exe(name)
             if candidate.is_file():
                 return str(candidate)
     return None
@@ -226,7 +254,6 @@ def _mp4box_filter(path: str) -> bool:
 def _get_defs() -> list[DependencyDef]:
     """Return list of dependency definitions, best-effort per platform."""
     os_ = _os()
-    arch = _arch()
     is_win = os_ == "windows"
     return [
         DependencyDef(
@@ -499,6 +526,43 @@ def find_bundled(name: str) -> Path | None:
     return None
 
 
+def _get_custom_binary_path(name: str) -> str | None:
+    """Read a configured executable from settings.json."""
+    key = {
+        "ffmpeg": "ffmpeg_path",
+        "MP4Box": "mp4box_path",
+        "N_m3u8DL-RE": "nm3u8dlre_path",
+    }.get(name)
+    if key is None:
+        return None
+
+    for settings_path in dict.fromkeys((DATA_DIR / "settings.json", BASE_DIR / "settings.json")):
+        try:
+            settings = json.loads(settings_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        value = settings.get(key) if isinstance(settings, dict) else None
+        if isinstance(value, str) and value.strip() not in ("", name):
+            return value.strip()
+    return None
+
+
+def find_binary(name: str, custom_path: str | None = None) -> str | None:
+    """Resolve a configured path, an app binary, or a system installation."""
+    if custom_path and custom_path != name:
+        return shutil.which(os.path.expanduser(custom_path))
+    target = _get_custom_binary_path(name)
+    if target:
+        configured = shutil.which(os.path.expanduser(target))
+        if configured:
+            return configured
+
+    bundled = find_bundled(name)
+    if bundled is not None:
+        return str(bundled)
+    return find_system_binary(name)
+
+
 def ensure_dependencies_async() -> None:
     """Check and download missing dependencies in a background thread."""
     thread = threading.Thread(target=_ensure_dependencies_sync, daemon=True)
@@ -508,61 +572,36 @@ def ensure_dependencies_async() -> None:
 def _ensure_dependencies_sync() -> None:
     """Synchronous dependency check & download."""
     _ensure_bin_dir()
-    defs = _get_defs()
-    use_winget = _winget_available() if _os() == "windows" else False
+    defs = {dep.name: dep for dep in _get_defs()}
+    system = _os()
+    use_winget = system == "windows" and _winget_available()
 
-    for dep in defs:
-        exe_name = dep.exe_name
-        dest = BIN_DIR / exe_name
-
-        # ── already installed system-wide? ────────────
-        if find_system_binary(dep.name) is not None:
-            _progress.update(dep.name, "ok", 100)
-            logger.info("%s found in system PATH, skipping download", dep.name)
+    for name in ("ffmpeg", "MP4Box", "N_m3u8DL-RE"):
+        if find_binary(name):
+            _progress.update(name, "ok", 100)
+            logger.info("%s found and ready", name)
             continue
 
-        # ── already in BIN_DIR? ──────────────────────
-        if dest.exists():
-            _progress.update(dep.name, "ok", 100)
-            logger.info("%s found at %s", dep.name, dest)
+        dep = defs.get(name)
+        if system == "macos" and name == "MP4Box":
+            _progress.update(name, "skipped", 0, "Use 'brew install gpac' or configure path in Settings")
             continue
 
-        # ── bundled in PyInstaller? copy to BIN_DIR ──
-        bd = _bundle_dir()
-        if bd:
-            src = bd / "bin" / exe_name
-            if src.exists():
-                _progress.update(dep.name, "ok", 100)
-                shutil.copy2(str(src), str(dest))
-                _make_executable(dest)
-                logger.info("Copied bundled %s → %s", dep.name, dest)
-                continue
-
-        # ── Windows: try winget first ─────────────────────
-        if use_winget and dep.name in _WINGET_PACKAGES:
-            logger.info("Trying winget for %s …", dep.name)
-            if _try_winget_install(dep.name):
-                # winget succeeded — binary should now be in PATH
-                continue
-            # winget failed — fall through to GitHub download
-            logger.info("winget failed for %s, falling back to GitHub download", dep.name)
-
-        # skip MP4Box on macOS — DMG extraction is impractical
-        if dep.name == "MP4Box" and _os() == "macos":
-            _progress.update(dep.name, "skipped", 0, "Use 'brew install gpac' or download manually")
-            logger.info("Skipping MP4Box auto-download on macOS — use 'brew install gpac'")
+        if system == "macos" and name == "N_m3u8DL-RE" and _arch() not in ("arm64", "x64"):
+            _progress.update(name, "skipped", 0, "No prebuilt binary for this platform")
             continue
 
-        # skip N_m3u8DL-RE on macOS arm64 if URL not available (pre-release)
-        if dep.name == "N_m3u8DL-RE" and _os() == "macos" and _arch() not in ("arm64", "x64"):
-            _progress.update(dep.name, "skipped", 0, "No prebuilt binary for this platform")
+        if dep and not dep.download_urls:
+            _progress.update(name, "error", 0, "Bundled binary is missing")
+            logger.warning("No safe runtime download is configured for %s", name)
             continue
 
-        if not dep.download_urls:
-            _progress.update(dep.name, "error", 0, "Bundled binary is missing")
-            logger.warning("No safe runtime download is configured for %s", dep.name)
+        if use_winget and name in _WINGET_PACKAGES and _try_winget_install(name):
             continue
 
-        result = _download_and_extract(dep)
-        if not result.ok:
-            logger.warning("Auto-download failed for %s: %s", dep.name, result.error)
+        if dep:
+            result = _download_and_extract(dep)
+            if not result.ok:
+                logger.warning("Auto-download failed for %s: %s", name, result.error)
+        else:
+            _progress.update(name, "skipped", 0, "No auto-download available for this platform")

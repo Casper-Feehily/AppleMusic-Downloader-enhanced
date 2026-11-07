@@ -42,6 +42,23 @@ Get supported options for dynamic rendering.
 
 ---
 
+### GET /api/system/check-update
+
+Compare the installed version with the latest GitHub Release of the enhanced edition. Pass `force=true` to bypass the cached result. A failed forced check returns HTTP 502.
+
+**Response:**
+```json
+{
+  "current_version": "2.4.14",
+  "latest_version": "2.4.14",
+  "has_update": false,
+  "release_notes": "",
+  "release_url": "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases"
+}
+```
+
+---
+
 ### GET /api/dependencies
 
 Check external dependencies (ffmpeg, N_m3u8DL-RE).
@@ -125,6 +142,7 @@ Submit a download task.
   "save_cover": false,
   "save_playlist": false,
   "no_synced_lyrics": false,
+  "synced_lyrics_only": false,
   "language": "en-US"
 }
 ```
@@ -132,6 +150,8 @@ Submit a download task.
 **Required fields:** `urls`. `cookies_path` is required only when `use_wrapper=false` (the API-compatible default). ALAC requires `use_wrapper=true`. Wrapper HTTP and decrypt hosts must be local loopback addresses.
 
 **Optional fields with defaults shown above.** Omit or pass `null` for defaults.
+
+Set `no_synced_lyrics` to skip fetching lyrics, including plain lyrics embedded in audio. Set `synced_lyrics_only` to save synchronized lyrics without downloading audio or video.
 
 Set `existing_library_path` to an existing directory on the server to skip songs found there or in its subdirectories. The task matches Apple Music song IDs or embedded title, artist, and album tags. Missing songs still go to `output_path`.
 
@@ -281,8 +301,8 @@ When running in desktop mode (`--desktop`), the API also serves the Next.js fron
 
 | Route | Serves |
 |---|---|
-| `GET /` | `src/fronted/out/index.html` |
-| `GET /*` | `src/fronted/out/*` (SPA fallback) |
+| `GET /` | `src/frontend/out/index.html` |
+| `GET /*` | `src/frontend/out/*` (SPA fallback) |
 
 No separate frontend dev server needed.
 

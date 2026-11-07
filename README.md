@@ -27,6 +27,8 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 
 本项目基于 [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader) 开发，并使用了 [gamdl (Glomatico&#39;s Apple Music Downloader)](https://github.com/glomatico/gamdl) 和 [yt-dlp](https://github.com/yt-dlp/yt-dlp) 的代码。感谢原项目及所有依赖项目的贡献者。
 
+上游作者还维护了 [amll-PiP-player](https://github.com/wenfeng110402/amll-pip-player)，可以为本地音频配对 TTML 歌词并以画中画显示。
+
 ---
 
 ## 目录
@@ -45,7 +47,6 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 - [环境要求](#环境要求)
 - [支持的链接类型](#支持的链接类型)
 - [项目结构](#项目结构)
-- [许可证](#许可证)
 - [免责声明](#免责声明)
 
 ---
@@ -55,7 +56,7 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 ### 方式一：pip 安装（推荐）
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.13/applemusic_dl-2.4.13-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.14/applemusic_dl-2.4.14-py3-none-any.whl"
 ```
 
 本增强版的 CLI 安装包随 GitHub Release 发布；PyPI 上的同名包属于原项目。
@@ -69,7 +70,7 @@ amdl --help
 如果需要桌面 GUI 模式，请安装带桌面依赖的版本：
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.13/applemusic_dl-2.4.13-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.14/applemusic_dl-2.4.14-py3-none-any.whl"
 ```
 
 ### 方式二：桌面安装包
@@ -321,7 +322,7 @@ AppleMusic-Downloader/
 │   │   ├── task_manager.py     # 任务队列管理
 │   │   ├── converter.py        # 格式转换
 │   │   └── ...
-│   └── fronted/           # Next.js 前端
+│   └── frontend/           # Next.js 前端
 │       ├── app/
 │       │   ├── components/  # 前端组件
 │       │   ├── service.tsx  # API 调用封装

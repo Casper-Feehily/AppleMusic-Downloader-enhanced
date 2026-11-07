@@ -47,6 +47,7 @@ def main() -> None:
     Routes to:
       - ``amdl server`` / ``amdl --server`` → API server
       - ``amdl desktop`` / ``amdl --desktop`` → desktop GUI
+      - ``amdl --gamdl-help`` → gamdl CLI full help
       - anything else → passthrough to gamdl CLI
     """
     args = sys.argv[1:]
@@ -73,22 +74,23 @@ def main() -> None:
         run_desktop()
         return
 
-    # ── new sub-command style ──────────────────────────────────
-    if args and args[0] not in ("--help", "-h", "--version"):
-        # Could be a sub-command (server/desktop) or gamdl passthrough
-        if args[0] in ("server", "desktop"):
-            cli(args=args, standalone_mode=False)
-            return
-        # Otherwise passthrough to gamdl
-        _passthrough_to_gamdl(args)
+    if args and args[0] in ("server", "desktop", "--version"):
+        cli(args=args, standalone_mode=False)
         return
 
-    # ── help / version / no args ─────────────────────────────
     if not args or args[0] in ("--help", "-h"):
         click.echo(_HELP)
         return
 
-    cli(args=args, standalone_mode=False)
+    if args[0] == "-V":
+        click.echo(f"amdl {__version__}")
+        return
+
+    if args[0] == "--gamdl-help":
+        _passthrough_to_gamdl(["--help"])
+        return
+
+    _passthrough_to_gamdl(args)
 
 
 def _passthrough_to_gamdl(args: list[str]) -> None:
@@ -126,6 +128,18 @@ Usage:
   amdl desktop                               Launch desktop app
   amdl <gamdl args...>                       Download songs, albums or playlists
 
+Download options:
+  -c, --cookies-path PATH          Path to cookies.txt for cookie-based downloads
+  -o, --output-path PATH           Output directory
+  --use-wrapper                    Use Wrapper for account, playback and decryption
+  --song-codec-priority CSV        Comma-separated codec priority (e.g. alac,aac-web)
+  --synced-lyrics-format FORMAT    Synced lyrics format (lrc, srt, ttml)
+  --synced-lyrics-only             Download synced lyrics only
+  --no-synced-lyrics               Skip synced lyrics
+  --save-cover                     Save cover art as a separate file
+  --download-mode MODE             Download engine (ytdlp, nm3u8dlre)
+  --overwrite                      Overwrite existing files
+
 Server options:
   --host HOST        Listen address (default: 127.0.0.1)
   --port PORT        Listen port (default: 8000)
@@ -136,5 +150,5 @@ Examples:
   amdl desktop
   amdl -c /path/to/cookies.txt "https://music.apple.com/..."
   amdl -c /path/to/cookies.txt "https://music.apple.com/.../playlist/.../pl..."
-  amdl --help
+  amdl --gamdl-help                          Show all gamdl CLI options
 """

@@ -27,6 +27,8 @@ The project offers two usage modes:
 
 This project is based on [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader) and uses code from [gamdl (Glomatico's Apple Music Downloader)](https://github.com/glomatico/gamdl) and [yt-dlp](https://github.com/yt-dlp/yt-dlp). Thanks to the upstream project and all dependency contributors.
 
+The upstream author also maintains [amll-PiP-player](https://github.com/wenfeng110402/amll-pip-player), which pairs local audio with TTML lyrics and displays them in picture-in-picture.
+
 ---
 
 ## Table of Contents
@@ -55,7 +57,7 @@ This project is based on [wenfeng110402/AppleMusic-Downloader](https://github.co
 ### Method 1: pip install (recommended)
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.13/applemusic_dl-2.4.13-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.14/applemusic_dl-2.4.14-py3-none-any.whl"
 ```
 
 This fork publishes CLI packages with GitHub Releases; the same-named package on PyPI belongs to the upstream project.
@@ -69,7 +71,7 @@ amdl --help
 For desktop GUI mode, install with desktop dependencies:
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.13/applemusic_dl-2.4.13-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.14/applemusic_dl-2.4.14-py3-none-any.whl"
 ```
 
 ### Method 2: Desktop installers
@@ -331,7 +333,7 @@ AppleMusic-Downloader/
 │   │   ├── task_manager.py     # Task queue management
 │   │   ├── converter.py        # Format conversion
 │   │   └── ...
-│   └── fronted/           # Next.js frontend
+│   └── frontend/           # Next.js frontend
 │       ├── app/
 │       │   ├── components/  # Frontend components
 │       │   ├── service.tsx  # API client wrapper

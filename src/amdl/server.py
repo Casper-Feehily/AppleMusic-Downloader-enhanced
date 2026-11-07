@@ -4,6 +4,7 @@ import json
 import asyncio
 import logging
 import os
+import re
 import socket
 import sys
 import shutil
@@ -35,8 +36,13 @@ from amdl.enums import (
 )
 from amdl import __version__
 from amdl.task_manager import get_task_manager
-from amdl.dependency_manager import BIN_DIR, DATA_DIR, _SUBPROCESS_FLAGS
-from amdl.dependency_manager import ensure_dependencies_async
+from amdl.dependency_manager import (
+    DATA_DIR,
+    _SUBPROCESS_FLAGS,
+    ensure_dependencies_async,
+    find_binary,
+    get_progress,
+)
 
 logger = logging.getLogger("amdl.server")
 
@@ -46,22 +52,12 @@ if getattr(sys, "frozen", False):
     FRONTEND_OUT = BASE_DIR / "frontend_out"
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
-    FRONTEND_OUT = BASE_DIR / "src" / "fronted" / "out"
+    FRONTEND_OUT = BASE_DIR / "src" / "frontend" / "out"
 
 # DATA_DIR / TEMP_DIR / SETTINGS_FILE — 统一从 dependency_manager 获取
 TEMP_DIR = DATA_DIR / "temp"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
-
-def _add_bin_to_path() -> None:
-    """Add BIN_DIR to PATH so shutil.which can find bundled binaries."""
-    bin_str = str(BIN_DIR)
-    current = os.environ.get("PATH", "")
-    if bin_str not in current:
-        os.environ["PATH"] = f"{bin_str}{os.pathsep}{current}"
-
-
-_add_bin_to_path()
 
 # ── 图标：根据平台自动选择 ────────────────────────────────
 import platform as _platform
@@ -384,42 +380,9 @@ class ApiInfoResponse(BaseModel):
 # Helpers
 # ═══════════════════════════════════════════════════════════════
 
-# ── well-known fallback paths per platform ──────────────────
-_HOMEBREW_PATHS: list[str] = [
-    "/opt/homebrew/bin",   # Apple Silicon
-    "/usr/local/bin",       # Intel Mac
-    "/home/linuxbrew/.linuxbrew/bin",
-]
-
-_KNOWN_EXTENSIONS: dict[str, str | None] = {
-    "N_m3u8DL-RE": ".exe" if sys.platform == "win32" else None,
-    "MP4Box": ".exe" if sys.platform == "win32" else None,
-    "ffmpeg": ".exe" if sys.platform == "win32" else None,
-}
-
-
 def _find_executable(name: str, custom_path: str | None = None) -> DependencyCheckItem:
-    """Find an executable, searching PATH → BIN_DIR → Homebrew paths."""
-    target = custom_path or name
-
-    # 1) shutil.which — respects PATH (including BIN_DIR added above)
-    found_path = shutil.which(target)
-
-    # 2) BIN_DIR direct lookup (for cases where BIN_DIR isn't in PATH yet)
-    if not found_path:
-        ext = _KNOWN_EXTENSIONS.get(name, None) or ""
-        candidate = BIN_DIR / f"{target}{ext}"
-        if candidate.exists():
-            found_path = str(candidate)
-
-    # 3) Homebrew fallback (macOS / Linux)
-    if not found_path and sys.platform != "win32":
-        for brew_dir in _HOMEBREW_PATHS:
-            candidate = Path(brew_dir) / target
-            if candidate.exists():
-                found_path = str(candidate)
-                break
-
+    """Find the executable and read its version."""
+    found_path = find_binary(name, custom_path)
     if found_path and Path(found_path).exists():
         resolved = Path(found_path).resolve()
         try:
@@ -503,6 +466,62 @@ async def get_api_info():
     )
 
 
+# ── Update Checker ──────────────────────────────────────────
+_RELEASE_REPO = "Casper-Feehily/AppleMusic-Downloader-enhanced"
+_RELEASES_URL = f"https://github.com/{_RELEASE_REPO}/releases"
+_UPDATE_CACHE: dict = {"time": 0.0, "data": None}
+
+
+def _parse_version(version: str) -> tuple[int, ...]:
+    if not re.fullmatch(r"v?\d+\.\d+\.\d+", version):
+        raise ValueError("Release tag must be a three-part version")
+    return tuple(map(int, version.lstrip("v").split(".")))
+
+
+@app.get("/api/system/check-update", tags=["system"])
+async def check_update(force: bool = False):
+    now = time.monotonic()
+    cached = _UPDATE_CACHE["data"]
+    if not force and cached is not None and now - _UPDATE_CACHE["time"] < 600:
+        return JSONResponse(content=cached)
+
+    try:
+        async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+            response = await client.get(
+                f"https://api.github.com/repos/{_RELEASE_REPO}/releases/latest",
+                headers={
+                    "User-Agent": f"AppleMusicDownloader/{__version__}",
+                    "Accept": "application/vnd.github+json",
+                },
+            )
+            response.raise_for_status()
+            release = response.json()
+            if not isinstance(release, dict) or not isinstance(release.get("tag_name"), str):
+                raise ValueError("GitHub response is missing the release tag")
+            latest = release["tag_name"].lstrip("v")
+            result = {
+                "has_update": _parse_version(release["tag_name"]) > _parse_version(__version__),
+                "current_version": __version__,
+                "latest_version": latest,
+                "release_notes": release.get("body") or "",
+                "release_url": release.get("html_url") or _RELEASES_URL,
+            }
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.debug("Failed to check for updates: %s", exc)
+        if force:
+            raise HTTPException(status_code=502, detail="Could not check for updates") from exc
+        result = cached or {
+            "has_update": False,
+            "current_version": __version__,
+            "latest_version": __version__,
+            "release_notes": "",
+            "release_url": _RELEASES_URL,
+        }
+
+    _UPDATE_CACHE.update(time=now, data=result)
+    return JSONResponse(content=result)
+
+
 @app.get("/api/dependencies", response_model=DependencyCheckResponse, tags=["system"])
 async def check_dependencies(ffmpeg_path: str = "", nm3u8dlre_path: str = "", mp4box_path: str = ""):
     deps = [
@@ -516,8 +535,11 @@ async def check_dependencies(ffmpeg_path: str = "", nm3u8dlre_path: str = "", mp
 @app.get("/api/dependencies/download-progress", tags=["system"])
 async def dep_download_progress():
     """Get the progress of auto-downloading missing dependencies."""
-    from amdl.dependency_manager import get_progress as _get_progress
-    return {"dependencies": _get_progress()}
+    progress = get_progress()
+    for name in ("ffmpeg", "MP4Box", "N_m3u8DL-RE"):
+        if find_binary(name):
+            progress[name] = {"status": "ok", "progress": 100, "error": ""}
+    return {"dependencies": progress}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -721,13 +743,17 @@ async def serve_index():
     if index.exists():
         return FileResponse(index)
     return HTMLResponse(
-        content="<html><body>Frontend not built. Run: cd src/fronted && npm run build</body></html>",
+        content="<html><body>Frontend not built. Run: cd src/frontend && npm run build</body></html>",
         status_code=200,
     )
 
 
 @app.get("/{full_path:path}", response_class=FileResponse)
 async def serve_static(full_path: str):
+    # API routes that were not matched above must return 404 JSON, never index.html
+    if full_path == "api" or full_path.startswith("api/"):
+        return JSONResponse({"detail": f"API endpoint not found: /{full_path}"}, status_code=404)
+
     file_path = (FRONTEND_OUT / full_path).resolve()
     root = FRONTEND_OUT.resolve()
     if file_path.is_relative_to(root) and file_path.exists() and file_path.is_file():

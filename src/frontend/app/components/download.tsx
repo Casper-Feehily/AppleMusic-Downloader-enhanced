@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import TagInput from "./TagInput";
 import { FormState, DEFAULT_FORM, getWrapperStatus, useSubmitTask } from "../service";
 import type { WrapperStatus } from "../service";
 import { useI18n } from "../i18n";
+import { useToast } from "./Toast";
 
 const AUDIO_FORMATS = [
   { value: "", label: "None" },
@@ -34,7 +35,11 @@ declare global {
 
 export default function Download({ onNavigate }: { onNavigate?: (id: string) => void }) {
   const { t, locale } = useI18n();
+  const toast = useToast();
   const submitTask = useSubmitTask();
+  const cookiesInput = useRef<HTMLInputElement>(null);
+  const outputInput = useRef<HTMLInputElement>(null);
+  const existingLibraryInput = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [existingLibraryPath, setExistingLibraryPath] = useState("");
   const [hover, setHover] = useState(false);
@@ -104,20 +109,27 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
 
   const handleSubmit = async () => {
     if (!form.use_wrapper && (!form.cookies_path || !form.cookies_path.trim())) {
-      alert(t("download.cookies_empty"));
+      toast.error(t("download.cookies_empty"));
       return;
     }
     if (form.use_wrapper && !wrapperReady) {
-      alert(t("download.wrapper_not_ready"));
+      toast.error(t("download.wrapper_not_ready"));
       return;
     }
-    // 直接用当前 form 的全部状态提交，无需读 localStorage
-    // form 已在 useEffect 中从 /api/settings 加载，set() 实时更新
-    const submitted = await submitTask(form, existingLibraryPath);
-    if (!submitted) return;
-    // 提交成功后清空暂存
-    sessionStorage.removeItem("amdl_pending_urls");
-    onNavigate?.("queue");
+    try {
+      const submitted = await submitTask(form, existingLibraryPath);
+      if (!submitted) return;
+      // 提交成功后清空暂存
+      sessionStorage.removeItem("amdl_pending_urls");
+      onNavigate?.("queue");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === "NETWORK_ERROR") {
+        toast.error(t("download.failed.backend"));
+      } else {
+        toast.error(`${t("download.failed")}: ${msg}`);
+      }
+    }
   };
 
   const wrapperReady = Boolean(
@@ -131,16 +143,17 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
     if (window.pywebview?.api) {
       window.pywebview.api.open_file().then((path: string) => { if (path) set("cookies_path", path); });
     } else {
-      const p = prompt("Cookies file path:");
-      if (p) set("cookies_path", p);
+      cookiesInput.current?.focus();
     }
   };
 
-  const browseFolder = async (onSelect: (path: string) => void, label: string) => {
-    const path = window.pywebview?.api
-      ? await window.pywebview.api.open_folder()
-      : prompt(label);
-    if (path) onSelect(path);
+  const browseFolder = async (input: HTMLInputElement | null, onSelect: (path: string) => void) => {
+    if (window.pywebview?.api) {
+      const path = await window.pywebview.api.open_folder();
+      if (path) onSelect(path);
+    } else {
+      input?.focus();
+    }
   };
 
   return (
@@ -236,6 +249,7 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
             <div className="flex gap-2">
               <input
                 className="input"
+                ref={cookiesInput}
                 placeholder={t("download.cookies")}
                 value={form.cookies_path}
                 onChange={(e) => set("cookies_path", e.target.value)}
@@ -248,11 +262,12 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
           <div className="flex gap-2">
             <input
               className="input"
+              ref={outputInput}
               placeholder={t("download.output")}
               value={form.output_path}
               onChange={(e) => set("output_path", e.target.value)}
             />
-            <button className="btn-secondary shrink-0 text-[11px]" onClick={() => browseFolder((path) => set("output_path", path), t("download.output"))}>
+            <button className="btn-secondary shrink-0 text-[11px]" onClick={() => browseFolder(outputInput.current, (path) => set("output_path", path))}>
               {t("download.output.browse")}
             </button>
           </div>
@@ -261,6 +276,7 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
           </label>
           <div className="flex gap-2">
             <input
+              ref={existingLibraryInput}
               id="existing-library"
               className="input"
               aria-describedby="existing-library-hint"
@@ -271,7 +287,7 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
             <button
               className="btn-secondary shrink-0 text-[11px]"
               aria-label={t("download.existing_library.browse")}
-              onClick={() => browseFolder(setExistingLibraryPath, t("download.existing_library.folder"))}
+              onClick={() => browseFolder(existingLibraryInput.current, setExistingLibraryPath)}
             >
               {t("download.output.browse")}
             </button>
@@ -292,26 +308,43 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
             onChange={(e) => setSourceCodec(e.target.value)}
           >
             <option value="aac-web">AAC 256 kbps</option>
+            <option value="aac-he-web">AAC-HE (web)</option>
             <option value="atmos">Dolby Atmos</option>
             <option value="alac" disabled={!form.use_wrapper}>{t("download.alac")}</option>
           </select>
         </div>
 
-        {/* ── Audio format ── */}
-        <div className="mb-5">
-          <label className="mb-1.5 block text-[10.5px] font-medium" style={{ color: "var(--text-dim)" }}>
-            {t("download.audio_format")}
-          </label>
-          <select
-            className="input"
-            value={form.audio_format}
-            disabled={form.codec_song === "alac"}
-            onChange={(e) => set("audio_format", e.target.value)}
-          >
-            {(locale === "zh" ? AUDIO_FORMATS_ZH : AUDIO_FORMATS).map((fmt) => (
-              <option key={fmt.value} value={fmt.value}>{fmt.label}</option>
-            ))}
-          </select>
+        {/* ── Format selection: Audio conversion & Lyrics format ── */}
+        <div className="mb-5 grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1.5 block text-[10.5px] font-medium" style={{ color: "var(--text-dim)" }}>
+              {t("download.audio_format")}
+            </label>
+            <select
+              className="input"
+              value={form.audio_format}
+              disabled={form.codec_song === "alac"}
+              onChange={(e) => set("audio_format", e.target.value)}
+            >
+              {(locale === "zh" ? AUDIO_FORMATS_ZH : AUDIO_FORMATS).map((fmt) => (
+                <option key={fmt.value} value={fmt.value}>{fmt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[10.5px] font-medium" style={{ color: "var(--text-dim)" }}>
+              {t("settings.lyrics_format")}
+            </label>
+            <select
+              className="input"
+              value={form.synced_lyrics_format}
+              onChange={(e) => set("synced_lyrics_format", e.target.value)}
+            >
+              <option value="lrc">LRC ({locale === "zh" ? "标准" : "Standard"})</option>
+              <option value="ttml">TTML ({locale === "zh" ? "逐字" : "Word-by-word"})</option>
+              <option value="srt">SRT ({locale === "zh" ? "字幕" : "Subtitles"})</option>
+            </select>
+          </div>
         </div>
 
         {/* ── Submit ── */}

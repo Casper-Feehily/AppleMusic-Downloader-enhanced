@@ -100,11 +100,11 @@ def _build_ffmpeg_cmd(
     copy_video: bool = True,
 ) -> list[str]:
     """Build a standard ffmpeg command with common flags."""
-    cmd = ["-y", "-i", source_path]
+    cmd = ["-y", "-i", source_path, "-map", "0:a:0"]
     cmd.extend(codec_args)
     cmd.extend(quality_args)
     if copy_video:
-        cmd.extend(["-c:v", "copy", "-map", "0:0", "-map", "0:1?"])
+        cmd.extend(["-map", "0:v:0?", "-c:v", "copy"])
     cmd.append(target_path)
     return cmd
 
@@ -131,7 +131,10 @@ def convert_audio_file(
         return False
 
     codec_args, quality_args = preset
-    cmd = [ffmpeg_exe] + _build_ffmpeg_cmd(source_path, target_path, codec_args, quality_args)
+    can_embed_cover = target_format in ("mp3", "m4a", "flac")
+    cmd = [ffmpeg_exe] + _build_ffmpeg_cmd(
+        source_path, target_path, codec_args, quality_args, copy_video=can_embed_cover
+    )
 
     log(f"    Converting: {os.path.basename(source_path)} → {target_format}")
     code, stdout, stderr = _run_subprocess(cmd)
@@ -180,7 +183,6 @@ def convert_downloaded_files(
     log: LogFunc,
 ) -> list[str]:
     """Batch-convert downloaded files by audio/video format."""
-    result_files: list[str] = []
     if not ffmpeg_exe:
         log("    Error: FFmpeg not available, conversion skipped")
         return []
@@ -188,57 +190,59 @@ def convert_downloaded_files(
     try:
         log(f"Preparing to convert {len(downloaded_files)} file(s)")
         converted_count = 0
+        current_files = list(downloaded_files)
 
         if audio_format and audio_format != "keep original":
-            for file_path in downloaded_files:
-                if not file_path.endswith((".m4a", ".mp4")):
-                    result_files.append(file_path)
+            next_files: list[str] = []
+            for file_path in current_files:
+                if not file_path.endswith(".m4a"):
+                    next_files.append(file_path)
                     continue
                 converted_path = os.path.splitext(file_path)[0] + f".{audio_format}"
                 if os.path.exists(converted_path):
                     log(f"    Skip {os.path.basename(file_path)} (target exists)")
-                    result_files.append(converted_path)
+                    next_files.append(converted_path)
                     continue
                 if convert_audio_file(file_path, converted_path, audio_format, ffmpeg_exe, log):
                     converted_count += 1
                     log(f"    Converted {os.path.basename(file_path)} → {audio_format}")
-                    result_files.append(converted_path)
+                    next_files.append(converted_path)
                     try:
                         os.remove(file_path)
                     except Exception as error:
                         log(f"    Failed to delete original {os.path.basename(file_path)}: {error}")
                 else:
-                    result_files.append(file_path)
+                    next_files.append(file_path)
+            current_files = next_files
 
         if video_format and video_format != "keep original":
-            for file_path in list(result_files):
-                if not file_path.endswith((".mov", ".mp4")):
+            next_files = []
+            for file_path in current_files:
+                if not file_path.endswith((".mov", ".mp4", ".m4v")):
+                    next_files.append(file_path)
                     continue
                 converted_path = os.path.splitext(file_path)[0] + f".{video_format}"
                 if os.path.exists(converted_path):
                     log(f"    Skip {os.path.basename(file_path)} (target exists)")
-                    if file_path in result_files:
-                        result_files.remove(file_path)
-                    result_files.append(converted_path)
+                    next_files.append(converted_path)
                     continue
                 if convert_video_file(file_path, converted_path, video_format, ffmpeg_exe, log):
                     converted_count += 1
                     log(f"    Converted {os.path.basename(file_path)} → {video_format}")
-                    if file_path in result_files:
-                        result_files.remove(file_path)
-                    result_files.append(converted_path)
+                    next_files.append(converted_path)
                     try:
                         os.remove(file_path)
                     except Exception as error:
                         log(f"    Failed to delete original {os.path.basename(file_path)}: {error}")
                 else:
-                    if file_path not in result_files:
-                        result_files.append(file_path)
+                    next_files.append(file_path)
+            current_files = next_files
 
         log(f"Conversion done: {converted_count} file(s) converted")
+        return current_files
     except Exception as error:
         log(f"Conversion error: {error}")
-    return result_files
+        return downloaded_files
 
 
 def convert_directory(
@@ -282,19 +286,19 @@ def convert_file_list(
         return []
 
     converted: list[str] = []
-    audio_exts = (".m4a", ".mp4")
+    audio_exts = (".m4a",)
     video_exts = (".mp4", ".mov", ".m4v")
 
     for path in files:
         if not path.exists():
             continue
         ext = path.suffix.lower()
-        if audio_format and ext in audio_exts:
+        if audio_format and ext in audio_exts and ext != f".{audio_format.lower()}":
             log(f"    Converting {path.name} → {audio_format}")
             target = str(path.with_suffix(f".{audio_format}"))
             if convert_audio_file(str(path), target, audio_format, ffmpeg_exe, log):
                 converted.append(target)
-        elif video_format and ext in video_exts:
+        elif video_format and ext in video_exts and ext != f".{video_format.lower()}":
             log(f"    Converting {path.name} → {video_format}")
             target = str(path.with_suffix(f".{video_format}"))
             if convert_video_file(str(path), target, video_format, ffmpeg_exe, log):

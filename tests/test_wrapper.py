@@ -212,28 +212,29 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
     ) -> tuple[int, list[str], list[str]]:
         media = SimpleNamespace(
             error=None,
-            partial=False,
+            partial=True,
             media_id="123",
             is_library=False,
             lyrics=None,
             tags=SimpleNamespace(title="English Title"),
             media_metadata={"type": "songs", "attributes": {"name": "English Title"}},
-            stream_info=SimpleNamespace(audio_track=SimpleNamespace(codec="alac")),
+            playlist_metadata=None,
         )
         downloaded: list[str] = []
         logs: list[str] = []
 
-        class FakeInterface:
-            async def get_media_from_url(self, _url):
-                yield media
+        interface = None
+
+        def make_interface(*, song, **_kwargs):
+            nonlocal interface
+            interface = SimpleNamespace(song=song)
+            return interface
 
         class FakeDownloader:
             async def get_download_item_from_url(self, _url):
-                if include_partial:
-                    media.partial = True
-                    yield await self.parse_download_item(media)
-                    media.partial = False
-                yield await self.parse_download_item(media)
+                async for parsed_media in interface.song.get_media(media):
+                    if include_partial or not parsed_media.partial:
+                        yield await self.parse_download_item(parsed_media)
 
             async def parse_download_item(self, parsed_media):
                 return SimpleNamespace(
@@ -253,18 +254,26 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
             active_subscription=True,
             get_webplayback=get_webplayback,
         )
+        wrapper_api = SimpleNamespace(get_playback=AsyncMock(return_value={
+            "songList": [{"assets": [{"metadata": {"itemName": "English Title"}}]}],
+        }))
         base_interface = SimpleNamespace(
+            apple_music_api=api,
+            wrapper_api=wrapper_api,
+            is_media_streamable=lambda _metadata: True,
+            get_cover=AsyncMock(return_value=None),
             get_tags_from_asset_info=AsyncMock(
-                return_value=SimpleNamespace(title="日本語タイトル"),
+                side_effect=lambda asset, *_args: SimpleNamespace(title=asset["itemName"]),
             ),
         )
+        stream_info = SimpleNamespace(audio_track=SimpleNamespace(codec="alac", drm_free=True))
         base_downloader = SimpleNamespace(
             full_nm3u8dlre_path=None,
             full_ffmpeg_path=None,
             download_stream=None,
         )
         with (
-            patch.object(core_downloader.WrapperApi, "create", AsyncMock(return_value=object())),
+            patch.object(core_downloader.WrapperApi, "create", AsyncMock(return_value=wrapper_api)),
             patch.object(
                 core_downloader.AppleMusicApi,
                 "create_from_wrapper",
@@ -275,12 +284,8 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
                 "create",
                 AsyncMock(return_value=base_interface),
             ),
-            patch.object(core_downloader, "AppleMusicInterface", return_value=FakeInterface()),
-            patch.object(
-                core_downloader,
-                "AppleMusicSongInterface",
-                return_value=SimpleNamespace(use_album_date=False),
-            ),
+            patch.object(core_downloader, "AppleMusicInterface", side_effect=make_interface),
+            patch.object(core_downloader._SongInterface, "get_stream_info", AsyncMock(return_value=stream_info)),
             patch.object(core_downloader, "AppleMusicMusicVideoInterface", return_value=object()),
             patch.object(core_downloader, "AppleMusicUploadedVideoInterface", return_value=object()),
             patch.object(core_downloader, "AppleMusicBaseDownloader", return_value=base_downloader),
@@ -299,6 +304,7 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
                 parse_progress_callback=parse_progress_callback,
             )
 
+        get_webplayback.assert_awaited_once_with("123", False)
         return errors, downloaded, logs
 
     async def test_parse_and_download_counts_exclude_partial_items(self) -> None:
