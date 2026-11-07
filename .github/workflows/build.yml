@@ -100,7 +100,7 @@ jobs:
       matrix:
         include:
           - os: macos
-            runner: macos-14
+            runner: macos-15
             artifact: AppleMusicDownloader-macos-arm64
             artifact_path: dist/AppleMusicDownloader-macos-arm64.dmg
           - os: windows

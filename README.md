@@ -55,7 +55,7 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 ### 方式一：pip 安装（推荐）
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.12/applemusic_dl-2.4.12-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.13/applemusic_dl-2.4.13-py3-none-any.whl"
 ```
 
 本增强版的 CLI 安装包随 GitHub Release 发布；PyPI 上的同名包属于原项目。
@@ -69,7 +69,7 @@ amdl --help
 如果需要桌面 GUI 模式，请安装带桌面依赖的版本：
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.12/applemusic_dl-2.4.12-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.13/applemusic_dl-2.4.13-py3-none-any.whl"
 ```
 
 ### 方式二：桌面安装包
@@ -340,7 +340,7 @@ AppleMusic-Downloader/
 
 本项目不提供任何担保，包括适销性或特定用途适用性的默示担保，详见 GPL 条款。
 
-上游原始代码的 Unlicense 声明保留在 [LICENSE-UNLICENSE](LICENSE-UNLICENSE)。第三方代码和依赖组件仍适用各自的许可证。
+第三方代码和依赖组件仍适用各自的许可证。
 
 ---
 

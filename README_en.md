@@ -55,7 +55,7 @@ This project is based on [wenfeng110402/AppleMusic-Downloader](https://github.co
 ### Method 1: pip install (recommended)
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.12/applemusic_dl-2.4.12-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.13/applemusic_dl-2.4.13-py3-none-any.whl"
 ```
 
 This fork publishes CLI packages with GitHub Releases; the same-named package on PyPI belongs to the upstream project.
@@ -69,7 +69,7 @@ amdl --help
 For desktop GUI mode, install with desktop dependencies:
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.12/applemusic_dl-2.4.12-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.13/applemusic_dl-2.4.13-py3-none-any.whl"
 ```
 
 ### Method 2: Desktop installers
@@ -350,7 +350,7 @@ This project is licensed under the **GNU General Public License, version 3 or la
 
 This project is distributed without any warranty, including the implied warranties of merchantability or fitness for a particular purpose. See the GNU GPL for details.
 
-The upstream code's original Unlicense notice is preserved in [LICENSE-UNLICENSE](LICENSE-UNLICENSE). Third-party code and dependencies remain subject to their respective licenses.
+Third-party code and dependencies remain subject to their respective licenses.
 
 ---
 

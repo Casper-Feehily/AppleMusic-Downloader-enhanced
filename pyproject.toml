@@ -16,7 +16,7 @@ dependencies = [
 ]
 readme = "README.md"
 license = "GPL-3.0-or-later"
-license-files = ["LICENSE", "LICENSE-UNLICENSE"]
+license-files = ["LICENSE"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
