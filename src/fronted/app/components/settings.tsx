@@ -390,15 +390,17 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
                 <input className="input" value={form.wrapper_url} onChange={(e) => set("wrapper_url", e.target.value)} />
                 <button className="btn-secondary shrink-0 px-2.5 text-[10.5px]" disabled={authBusy} onClick={() => void checkWrapper()}>{t("settings.check")}</button>
               </div>
-              <p className="mt-2 text-[10.5px]" style={{ color: wrapperStatus?.compatible && wrapperStatus.authenticated && wrapperStatus.playback_ready ? "#22c55e" : "var(--text-muted)" }}>
-                {wrapperStatus && !wrapperStatus.compatible
-                  ? t("settings.wrapper_incompatible")
-                  : wrapperStatus?.authenticated && wrapperStatus.playback_ready
-                  ? t("settings.wrapper_ready")
-                  : wrapperStatus?.authenticated
-                    ? t("settings.wrapper_not_ready")
-                    : t("settings.wrapper_logged_out")}
-              </p>
+              {wrapperStatus && (
+                <p className="mt-2 text-[10.5px]" style={{ color: wrapperStatus.compatible && wrapperStatus.authenticated && wrapperStatus.playback_ready ? "#22c55e" : "var(--text-muted)" }}>
+                  {!wrapperStatus.compatible
+                    ? t("settings.wrapper_incompatible")
+                    : !wrapperStatus.playback_ready
+                      ? t("settings.wrapper_not_ready")
+                      : wrapperStatus.authenticated
+                        ? t("settings.wrapper_ready")
+                        : t("settings.wrapper_logged_out")}
+                </p>
+              )}
               {!wrapperStatus?.authenticated && !needsTwoFactor && (
                 <div className="mt-3 space-y-2">
                   <input className="input" type="email" autoComplete="username" placeholder={t("settings.apple_id")} value={appleId} onChange={(e) => setAppleId(e.target.value)} />

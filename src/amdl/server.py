@@ -532,15 +532,38 @@ async def wrapper_status(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     response = await _wrapper_request("GET", wrapper_url, "/me")
-    if response.is_error:
-        raise HTTPException(status_code=502, detail="Wrapper returned an error")
     try:
         me = response.json()
-        if not isinstance(me, dict):
-            raise ValueError("Expected an object")
-        return _wrapper_status(me)
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=502, detail="Wrapper returned invalid JSON") from exc
+    except ValueError:
+        me = None
+
+    if (
+        response.status_code == 503
+        and isinstance(me, dict)
+        and me.get("error") == "worker_unavailable"
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="Wrapper HTTP is running, but its Apple Music worker is unavailable. "
+            "Run docker compose logs --tail=100 wrapper in the wrapper-v2 directory.",
+        )
+    if not response.is_success:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Wrapper /me returned HTTP {response.status_code}. "
+            "Check the configured HTTP port and /health at the same address.",
+        )
+    if (
+        not isinstance(me, dict)
+        or not isinstance(me.get("version"), str)
+        or not isinstance(me.get("auth"), dict)
+    ):
+        raise HTTPException(
+            status_code=502,
+            detail="Invalid Wrapper /me response. Check the configured HTTP port "
+            "and /health at the same address.",
+        )
+    return _wrapper_status(me)
 
 
 @app.get("/api/wrapper/setup/status", tags=["wrapper"])

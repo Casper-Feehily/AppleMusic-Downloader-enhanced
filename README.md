@@ -117,16 +117,16 @@ cd wrapper-v2
 #### Apple Silicon / Linux ARM / Windows on ARM
 
 ```bash
-bash tools/extract-libs.sh --bundle /绝对路径/apple-music.apkm --arch arm64-v8a
-bash tools/stage-system.sh --arch arm64-v8a
+bash tools/extract-libs.sh --bundle /绝对路径/apple-music.apkm --arch arm64-v8a &&
+bash tools/stage-system.sh --arch arm64-v8a &&
 TARGET_ARCH=arm64-v8a RUNTIME_PLATFORM=linux/arm64 docker compose up --build -d
 ```
 
 #### Intel / AMD 64 位（含普通 Windows 电脑）
 
 ```bash
-bash tools/extract-libs.sh --bundle /绝对路径/apple-music.apkm --arch x86_64
-bash tools/stage-system.sh --arch x86_64
+bash tools/extract-libs.sh --bundle /绝对路径/apple-music.apkm --arch x86_64 &&
+bash tools/stage-system.sh --arch x86_64 &&
 docker compose up --build -d
 ```
 
@@ -136,7 +136,7 @@ docker compose up --build -d
 curl http://127.0.0.1/health
 ```
 
-`/health` 返回的 `runtime.playback_ready` 必须为 `true`，才能下载 ALAC。请勿将 `/me` 的返回内容贴到公开位置。若构建、架构或 APK 版本不匹配，请回到 [wrapper-v2 文档](https://github.com/glomatico/wrapper-v2#local-build) 逐项核对，不要尝试用任意最新版 Apple Music APK 代替。
+ALAC 需要 `runtime.playback_ready` 为 `true`。手动部署的 Wrapper 如果在 `/health` 中显示 `mode: "rust-supervisor"`，请从 `/me` 查看此字段。请勿公开 `/me` 的完整响应，其中可能含有登录令牌。若构建、架构或 APK 版本不匹配，请按 [wrapper-v2 文档](https://github.com/glomatico/wrapper-v2#local-build) 核对。
 
 #### Windows 用户：在 WSL2 中执行上述脚本
 
@@ -149,14 +149,27 @@ wsl --install -d Ubuntu
 重启并打开 Ubuntu 后，将 APK/APKM 放在 Windows 目录，在 WSL 中以 `/mnt/c/...` 路径引用。例如普通 Intel/AMD Windows：
 
 ```bash
-cd ~/wrapper-v2
+cd ~/wrapper-v2 &&
 bash tools/extract-libs.sh \
-  --bundle /mnt/c/Users/你的用户名/Downloads/apple-music.apkm --arch x86_64
-bash tools/stage-system.sh --arch x86_64
+  --bundle "/mnt/c/Users/你的用户名/Downloads/apple-music.apkm" --arch x86_64 &&
+bash tools/stage-system.sh --arch x86_64 &&
 docker compose up --build -d
 ```
 
 Windows 桌面版 AppleMusic Downloader 仍填写 `http://127.0.0.1`、解密主机 `127.0.0.1` 和端口 `10020`；Docker Desktop 会将端口提供给 Windows 本机。Windows CLI 用户也使用同样的 wrapper 地址和端口，前提是 WSL2 中的 wrapper-v2 已暴露到 Windows 本机。
+
+##### Windows 排查 Wrapper 502 与启动日志
+
+在 **Windows PowerShell** 中检查桌面版实际使用的 HTTP 地址。若 Compose 映射到其他端口，把下面的地址改成相同端口。
+
+```powershell
+curl.exe --noproxy "*" -i "http://127.0.0.1/health?deep=1"
+curl.exe --noproxy "*" -sS -o NUL -w "%{http_code} %{content_type}\n" "http://127.0.0.1/me"
+```
+
+- `/health` 返回 HTML、重定向或连接失败时，在 WSL 的 wrapper-v2 目录执行 `docker compose ps`，核对容器和 Windows 上映射的 HTTP 端口。如果 `worker_ipc.reachable` 为 `false`，执行 `docker compose logs --tail=100 wrapper` 检查 worker。
+- 单条 `undefined symbol: ...SVFootHillSessionCtrl...` 可能来自 Wrapper 尝试不同符号签名。若日志明确出现 `FPS decrypt symbols unavailable`，核对 APK/APKM 内的架构与 Docker 构建目标，确认提取与 staging 的 SHA-256 校验全部通过。build 1109 仍需通过校验，避免使用 `--ignore-hash`。
+- 若日志完整句子是 `cached-session restore found Apple session files but token harvest failed`，可在 WSL 运行 `WRAPPER_RESTORE_SESSION=0 docker compose up -d --force-recreate`，保留本地会话文件并跳过自动恢复，再在桌面版手动登录。若日志显示的是手动登录后提取令牌失败，请保留该次登录的脱敏日志。
 
 ### 在本项目中登录并下载
 

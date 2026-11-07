@@ -44,6 +44,41 @@ class WrapperRequestTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(status["playback_ready"])
         self.assertEqual(str(send.call_args.args[0].url), "http://127.0.0.1/me")
 
+    async def test_status_guides_users_when_me_is_not_a_wrapper_response(self) -> None:
+        responses = (
+            httpx.Response(200, text="<html>secret-body</html>"),
+            httpx.Response(200, json={"status": "ok", "version": "0.0.2"}),
+            httpx.Response(302, headers={"Location": "/secret-redirect"}),
+            httpx.Response(404, text="secret-body"),
+        )
+        for response in responses:
+            with self.subTest(status=response.status_code, body=response.content):
+                with (
+                    patch.object(server, "_wrapper_request", AsyncMock(return_value=response)),
+                    self.assertRaises(HTTPException) as raised,
+                ):
+                    await server.wrapper_status("http://127.0.0.1")
+                self.assertEqual(raised.exception.status_code, 502)
+                self.assertIn("/me", raised.exception.detail)
+                self.assertIn("/health", raised.exception.detail)
+                self.assertNotIn("secret", raised.exception.detail)
+
+    async def test_status_distinguishes_unavailable_worker_from_unreachable_wrapper(self) -> None:
+        response = httpx.Response(503, json={
+            "error": "worker_unavailable",
+            "detail": "internal-worker-detail",
+        })
+        with (
+            patch.object(server, "_wrapper_request", AsyncMock(return_value=response)),
+            self.assertRaises(HTTPException) as raised,
+        ):
+            await server.wrapper_status("http://127.0.0.1")
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertIn("worker", raised.exception.detail)
+        self.assertIn("docker compose logs", raised.exception.detail)
+        self.assertNotIn("internal-worker-detail", raised.exception.detail)
+
     def test_auth_mode_and_local_address_validation(self) -> None:
         request = DownloadRequest(
             urls=["test"],

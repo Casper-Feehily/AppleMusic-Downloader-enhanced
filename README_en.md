@@ -117,16 +117,16 @@ cd wrapper-v2
 #### Apple Silicon / Linux ARM / Windows on ARM
 
 ```bash
-bash tools/extract-libs.sh --bundle /absolute/path/apple-music.apkm --arch arm64-v8a
-bash tools/stage-system.sh --arch arm64-v8a
+bash tools/extract-libs.sh --bundle /absolute/path/apple-music.apkm --arch arm64-v8a &&
+bash tools/stage-system.sh --arch arm64-v8a &&
 TARGET_ARCH=arm64-v8a RUNTIME_PLATFORM=linux/arm64 docker compose up --build -d
 ```
 
 #### Intel / AMD 64-bit (including typical Windows PCs)
 
 ```bash
-bash tools/extract-libs.sh --bundle /absolute/path/apple-music.apkm --arch x86_64
-bash tools/stage-system.sh --arch x86_64
+bash tools/extract-libs.sh --bundle /absolute/path/apple-music.apkm --arch x86_64 &&
+bash tools/stage-system.sh --arch x86_64 &&
 docker compose up --build -d
 ```
 
@@ -136,7 +136,7 @@ On any platform, check the local service:
 curl http://127.0.0.1/health
 ```
 
-`runtime.playback_ready` in the `/health` response must be `true` before ALAC downloads work. Do not post `/me` output publicly. If the build, architecture, or APK version does not match, follow the [wrapper-v2 local-build guide](https://github.com/glomatico/wrapper-v2#local-build); do not substitute an arbitrary current Apple Music APK.
+ALAC requires `runtime.playback_ready` to be `true`. For a manual Wrapper installation whose `/health` shows `mode: "rust-supervisor"`, check this field in `/me`. Keep the full `/me` response private because it may contain login tokens. If the build, architecture, or APK version does not match, follow the [wrapper-v2 local-build guide](https://github.com/glomatico/wrapper-v2#local-build).
 
 #### Windows: run the scripts in WSL2
 
@@ -149,14 +149,27 @@ wsl --install -d Ubuntu
 After restarting, open Ubuntu. Keep the APK/APKM in a Windows folder and reference it in WSL using `/mnt/c/...`. For a typical Intel/AMD Windows computer:
 
 ```bash
-cd ~/wrapper-v2
+cd ~/wrapper-v2 &&
 bash tools/extract-libs.sh \
-  --bundle /mnt/c/Users/your-name/Downloads/apple-music.apkm --arch x86_64
-bash tools/stage-system.sh --arch x86_64
+  --bundle "/mnt/c/Users/your-name/Downloads/apple-music.apkm" --arch x86_64 &&
+bash tools/stage-system.sh --arch x86_64 &&
 docker compose up --build -d
 ```
 
 In the Windows AppleMusic Downloader desktop app, use `http://127.0.0.1`, decrypt host `127.0.0.1`, and port `10020`; Docker Desktop exposes the wrapper port to Windows. Windows CLI users use the same wrapper address and port, as long as the wrapper-v2 service in WSL2 is exposed to Windows.
+
+##### Windows troubleshooting for Wrapper 502 and startup logs
+
+Run these checks from **Windows PowerShell**, using the same HTTP port as the desktop app.
+
+```powershell
+curl.exe --noproxy "*" -i "http://127.0.0.1/health?deep=1"
+curl.exe --noproxy "*" -sS -o NUL -w "%{http_code} %{content_type}\n" "http://127.0.0.1/me"
+```
+
+- If `/health` returns HTML, redirects, or fails to connect, run `docker compose ps` in the wrapper-v2 directory in WSL and check the container and the published HTTP port. If `worker_ipc.reachable` is `false`, check the worker with `docker compose logs --tail=100 wrapper`.
+- A single `undefined symbol: ...SVFootHillSessionCtrl...` can come from probing alternate symbol signatures. If the log says `FPS decrypt symbols unavailable`, match the APK/APKM architecture to the Docker build target and confirm that extraction and staging both pass SHA-256 verification. Build 1109 still requires verification. Avoid `--ignore-hash`.
+- If the log says `cached-session restore found Apple session files but token harvest failed`, run `WRAPPER_RESTORE_SESSION=0 docker compose up -d --force-recreate` in WSL to skip automatic restoration while keeping local session files, then sign in through the desktop app. If token harvesting fails after a manual sign-in, capture the redacted log from that attempt.
 
 ### Sign In and Download
 
