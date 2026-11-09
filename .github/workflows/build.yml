@@ -137,6 +137,9 @@ jobs:
           dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffmpeg -version
           codesign --verify --deep --strict dist/AppleMusicDownloader-macos-arm64.app
 
+      - name: Verify native update helpers
+        run: python -m unittest discover -s tests -p 'test_update_helpers.py' -v
+
       - name: Verify bundled FFmpeg (Windows)
         if: matrix.os == 'windows'
         shell: pwsh

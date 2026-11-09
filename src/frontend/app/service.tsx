@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 // ── 类型定义 ───────────────────────────────────────────────────
 
@@ -329,6 +329,71 @@ export interface UpdateInfo {
   release_notes: string;
   release_url: string;
 }
+
+export interface DesktopUpdateStatus {
+  phase: "idle" | "checking" | "downloading" | "preparing" | "waiting" | "installing" | "error";
+  downloaded: number;
+  total: number;
+  version: string;
+  current_version: string;
+  error: string;
+  supported: boolean;
+  reason: string;
+}
+
+declare global {
+  interface Window {
+    pywebview?: { api: {
+      open_file: () => Promise<string>;
+      open_folder: () => Promise<string>;
+      update_status?: () => Promise<DesktopUpdateStatus>;
+      start_update?: () => Promise<DesktopUpdateStatus>;
+    } };
+  }
+}
+
+export function useDesktopUpdate() {
+  const [status, setStatus] = useState<DesktopUpdateStatus | null>(null);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    let polling = false;
+    const refresh = async () => {
+      const api = window.pywebview?.api;
+      if (!api?.update_status || polling) return;
+      polling = true;
+      try {
+        const result = await api.update_status();
+        if (alive) setStatus(result);
+      } catch { /* the application may be closing to install */ }
+      finally { polling = false; }
+    };
+    void refresh();
+    window.addEventListener("pywebviewready", refresh);
+    const timer = window.setInterval(refresh, 1000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("pywebviewready", refresh);
+    };
+  }, []);
+
+  const start = async () => {
+    if (!window.pywebview?.api.start_update || starting) return;
+    setStarting(true);
+    try {
+      setStatus(await window.pywebview.api.start_update());
+    } catch (error) {
+      setStatus(previous => previous ? { ...previous, phase: "error", error: String(error) } : previous);
+    } finally {
+      setStarting(false);
+    }
+  };
+  return { status, starting, start };
+}
+
+export type DesktopUpdateController = ReturnType<typeof useDesktopUpdate>;
 
 export function useCheckUpdate() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);

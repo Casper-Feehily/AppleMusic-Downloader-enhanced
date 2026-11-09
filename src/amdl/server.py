@@ -675,7 +675,10 @@ async def clean_temp():
 @app.post("/api/tasks", response_model=TaskSubmitResponse, tags=["tasks"])
 async def submit_task(request: DownloadRequest):
     tm = get_task_manager()
-    task_id = await tm.submit(request.model_dump())
+    try:
+        task_id = await tm.submit(request.model_dump())
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return TaskSubmitResponse(task_id=task_id, status="pending", message="Task submitted")
 
 
@@ -770,7 +773,21 @@ async def serve_static(full_path: str):
 
 class PywebviewApi:
     def __init__(self, window_ref: list):
+        from amdl.updater import UpdateManager
+
         self._window_ref = window_ref
+        self._updater = UpdateManager(DATA_DIR, get_task_manager(), lambda: self._window_ref[0].destroy())
+
+    def update_status(self) -> dict:
+        return self._updater.status()
+
+    def start_update(self) -> dict:
+        from amdl.updater import UpdateError
+
+        try:
+            return self._updater.start()
+        except UpdateError as exc:
+            return {**self._updater.status(), "phase": "error", "error": str(exc)}
 
     def open_file(self, **kwargs) -> str | None:
         import webview

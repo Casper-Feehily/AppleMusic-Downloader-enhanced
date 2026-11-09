@@ -128,6 +128,8 @@ class TaskManager:
         self._worker_task: asyncio.Task | None = None
         self._lock = threading.Lock()
         self._max_concurrent = max_concurrent
+        self._update_reserved = False
+        self._active_task_id: str | None = None
 
     # ── Lifecycle ────────────────────────────────────────
 
@@ -165,11 +167,27 @@ class TaskManager:
         task_id = str(uuid.uuid4())
         task = DownloadTask(task_id, kwargs)
         with self._lock:
+            if self._update_reserved:
+                raise RuntimeError("An update is being installed; try again after restart")
             self._tasks[task_id] = task
         await self._queue.put(task_id)
         return task_id
 
     # ── Task queries ─────────────────────────────────────
+
+    def reserve_update(self) -> bool:
+        """Atomically exclude new submissions only after all work has stopped."""
+        with self._lock:
+            if self._active_task_id is not None or any(
+                t.status in (TaskStatus.PENDING, TaskStatus.RUNNING) for t in self._tasks.values()
+            ):
+                return False
+            self._update_reserved = True
+            return True
+
+    def release_update(self) -> None:
+        with self._lock:
+            self._update_reserved = False
 
     def get_task(self, task_id: str) -> DownloadTask | None:
         with self._lock:
@@ -196,8 +214,9 @@ class TaskManager:
         task.status = TaskStatus.CANCELLED
         task.message = "已取消"
         task.updated_at = datetime.now(timezone.utc).isoformat()
-        if task._future and not task._future.done():
-            task._future.cancel()
+        # Cancellation is cooperative at the next progress/parse boundary.
+        # Cancelling the asyncio future directly detaches blocking downloads
+        # inside to_thread(), allowing an update while they still write files.
         await self._broadcast_status(task)
         return True
 
@@ -217,7 +236,9 @@ class TaskManager:
                     self._queue.task_done()
                     continue
 
-                task.status = TaskStatus.RUNNING
+                with self._lock:
+                    self._active_task_id = task_id
+                    task.status = TaskStatus.RUNNING
                 task.updated_at = datetime.now(timezone.utc).isoformat()
                 await self._broadcast_status(task)
 
@@ -235,6 +256,8 @@ class TaskManager:
                     task.updated_at = datetime.now(timezone.utc).isoformat()
                     await self._broadcast_status(task)
                 finally:
+                    with self._lock:
+                        self._active_task_id = None
                     self._queue.task_done()
 
     async def _execute_download(self, task_id: str) -> None:

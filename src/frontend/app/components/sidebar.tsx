@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
-import { useCheckUpdate, type UpdateInfo } from "../service";
+import { useCheckUpdate, useDesktopUpdate } from "../service";
 import { useToast } from "./Toast";
+import UpdateModal from "./update-modal";
 
 const NAV_ITEMS = [
   {
@@ -48,15 +49,19 @@ export default function Sidebar({ active, onNavigate }: { active: string; onNavi
   const { t, locale, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
   const { updateInfo, checking, check } = useCheckUpdate();
+  const desktopUpdate = useDesktopUpdate();
   const toast = useToast();
   const [showModal, setShowModal] = useState(false);
+  const [dismissedError, setDismissedError] = useState("");
+  const updateStatus = desktopUpdate.status;
+  const showUpdateError = updateStatus?.phase === "error" && updateStatus.error !== dismissedError;
 
   useEffect(() => {
     check();
   }, [check]);
 
   const handleVersionClick = async () => {
-    if (updateInfo?.has_update) {
+    if (updateInfo?.has_update || (updateStatus && updateStatus.phase !== "idle")) {
       setShowModal(true);
       return;
     }
@@ -266,111 +271,25 @@ export default function Sidebar({ active, onNavigate }: { active: string; onNavi
       </nav>
 
       {/* Update Modal */}
-      {showModal && updateInfo && (
+      {(showModal || showUpdateError) && (
         <UpdateModal
-          updateInfo={updateInfo}
-          onClose={() => setShowModal(false)}
+          updateInfo={updateInfo ?? {
+            has_update: false,
+            current_version: updateStatus?.current_version ?? "",
+            latest_version: updateStatus?.version || updateStatus?.current_version || "",
+            release_notes: "",
+            release_url: "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases",
+          }}
+          desktopUpdate={{ ...desktopUpdate, start: async () => {
+            setShowModal(true);
+            await desktopUpdate.start();
+          } }}
+          onClose={() => {
+            setShowModal(false);
+            setDismissedError(updateStatus?.error ?? "");
+          }}
         />
       )}
     </>
-  );
-}
-
-function UpdateModal({
-  updateInfo,
-  onClose,
-}: {
-  updateInfo: UpdateInfo;
-  onClose: () => void;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in-up"
-      style={{
-        background: "rgba(0, 0, 0, 0.55)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-[420px] rounded-2xl p-6 shadow-2xl animate-spring-in"
-        style={{
-          background: "var(--card-bg)",
-          border: "1px solid var(--card-border)",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.45)",
-          backdropFilter: "blur(20px)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-500 text-xs font-bold">
-              ↑
-            </span>
-            <h3 className="text-[14px] font-semibold" style={{ color: "var(--text-heading)" }}>
-              {t("update.title")}
-            </h3>
-          </div>
-          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-            {t("update.available")}
-          </span>
-        </div>
-
-        <div
-          className="mb-4 flex items-center justify-between rounded-lg p-2.5"
-          style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)" }}
-        >
-          <div className="text-[11px]" style={{ color: "var(--text-dim)" }}>
-            <span>{t("update.current")}: </span>
-            <span className="font-mono text-foreground font-medium">v{updateInfo.current_version}</span>
-          </div>
-          <div className="text-[11px]" style={{ color: "var(--text-dim)" }}>
-            <span>{t("update.latest")}: </span>
-            <span className="font-mono font-semibold text-emerald-400">v{updateInfo.latest_version}</span>
-          </div>
-        </div>
-
-        {updateInfo.release_notes && (
-          <div className="mb-5">
-            <div className="text-[10.5px] font-medium mb-1.5" style={{ color: "var(--text-dim)" }}>
-              {t("update.changelog")}
-            </div>
-            <div
-              className="max-h-[160px] overflow-y-auto rounded-lg p-3 text-[11px] leading-relaxed font-mono whitespace-pre-wrap"
-              style={{
-                background: "var(--log-bg)",
-                color: "var(--log-text)",
-                border: "1px solid var(--card-border)",
-              }}
-            >
-              {updateInfo.release_notes}
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button
-            onClick={onClose}
-            className="btn-secondary flex-1 py-2 text-[12px] font-medium"
-            style={{ borderRadius: 8 }}
-          >
-            {t("update.close")}
-          </button>
-          <button
-            onClick={() => {
-              window.open(updateInfo.release_url, "_blank", "noopener,noreferrer");
-              onClose();
-            }}
-            className="btn-primary flex-1 py-2 text-[12px] font-medium"
-            style={{ borderRadius: 8 }}
-          >
-            {t("update.download_btn")}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }

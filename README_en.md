@@ -57,7 +57,7 @@ The upstream author also maintains [amll-PiP-player](https://github.com/wenfeng1
 ### Method 1: pip install (recommended)
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.14/applemusic_dl-2.4.14-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.15/applemusic_dl-2.4.15-py3-none-any.whl"
 ```
 
 This fork publishes CLI packages with GitHub Releases; the same-named package on PyPI belongs to the upstream project.
@@ -71,7 +71,7 @@ amdl --help
 For desktop GUI mode, install with desktop dependencies:
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.14/applemusic_dl-2.4.14-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.15/applemusic_dl-2.4.15-py3-none-any.whl"
 ```
 
 ### Method 2: Desktop installers
@@ -80,6 +80,10 @@ Download the installer for your system from the [Releases](https://github.com/Ca
 
 - Windows: run `AppleMusicDownloader-Setup-windows-x64.exe`
 - Apple Silicon Mac: open `AppleMusicDownloader-macos-arm64.dmg` and drag the app into Applications
+
+When a new version is available, click the version at the bottom of the sidebar and choose **Update Now**. The desktop app downloads the matching installer from this fork's GitHub Releases, verifies GitHub's SHA-256 digest and shows progress. Once all queued downloads finish, it closes, installs and reopens automatically, preserving settings and music. **Continue in Background** hides the dialog while the update continues.
+
+One-click updates support installed Windows x64 and Apple Silicon macOS apps in writable locations. Move the Mac app out of the DMG first. Missing checksums, network errors or failed verification stop the update and leave manual download available. macOS replacement failures attempt to restore and reopen the previous app; Windows installation errors are logged under `updates` in the app data directory. Older versions need one manual installation of a version containing this feature before they can update themselves.
 
 Windows and Apple Silicon macOS installers bundle FFmpeg, so no first-launch download is required. The binary comes from pinned [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1); license and build information are included under `third_party/ffmpeg/`. See [FFmpeg Legal](https://ffmpeg.org/legal.html) for source and distribution details.
 

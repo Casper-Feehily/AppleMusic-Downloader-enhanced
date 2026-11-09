@@ -1,2 +1,2 @@
 """AppleMusic Downloader (amdl) — core package."""
-__version__ = "2.4.14"
+__version__ = "2.4.15"

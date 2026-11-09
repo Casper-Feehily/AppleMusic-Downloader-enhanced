@@ -27,12 +27,6 @@ const AUDIO_FORMATS_ZH = [
   { value: "ogg", label: "OGG" },
 ];
 
-declare global {
-  interface Window {
-    pywebview?: { api: { open_file: () => Promise<string>; open_folder: () => Promise<string> } };
-  }
-}
-
 export default function Download({ onNavigate }: { onNavigate?: (id: string) => void }) {
   const { t, locale } = useI18n();
   const toast = useToast();

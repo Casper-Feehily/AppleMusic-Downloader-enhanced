@@ -49,8 +49,8 @@ Compare the installed version with the latest GitHub Release of the enhanced edi
 **Response:**
 ```json
 {
-  "current_version": "2.4.14",
-  "latest_version": "2.4.14",
+  "current_version": "2.4.15",
+  "latest_version": "2.4.15",
   "has_update": false,
   "release_notes": "",
   "release_url": "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases"

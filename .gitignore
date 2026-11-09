@@ -67,3 +67,14 @@ settings.json
 debug_admin.py
 test_launcher.py
 start.sh
+
+# ── Local agent instructions and working notes ────────────────
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+SKILL.md
+.agents/
+.claude/
+.codex/
+.superpowers/
+docs/superpowers/
