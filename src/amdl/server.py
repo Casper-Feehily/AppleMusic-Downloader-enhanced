@@ -174,6 +174,29 @@ def _wrapper_status(me: dict) -> dict:
     }
 
 
+def _wrapper_login_error(response: httpx.Response, message: str) -> dict:
+    """Only expose fixed diagnostics, never native error text or account data."""
+    detail = {"message": message}
+    try:
+        auth = response.json()
+    except ValueError:
+        return detail
+    if not isinstance(auth, dict):
+        return detail
+    state = auth.get("state")
+    if isinstance(state, str) and state in (
+        "logged_out", "in_progress", "awaiting_2fa", "authenticated", "failed",
+    ):
+        detail["auth_state"] = state
+    code = auth.get("error_code")
+    # Reject old ABI pointer fragments, booleans and user-controlled strings.
+    if type(code) is int and 0 <= code <= 65535:
+        detail["error_code"] = code
+        if code == 8:
+            detail["hint"] = "check_apple_network"
+    return detail
+
+
 # ═══════════════════════════════════════════════════════════════
 # Models
 # ═══════════════════════════════════════════════════════════════
@@ -622,7 +645,7 @@ async def wrapper_login(request: WrapperLoginRequest):
     if response.status_code == 202:
         return JSONResponse(status_code=202, content={"state": "requires_2fa"})
     if response.status_code == 401:
-        raise HTTPException(status_code=401, detail="Wrapper login failed")
+        raise HTTPException(status_code=401, detail=_wrapper_login_error(response, "Wrapper login failed"))
     raise HTTPException(status_code=502, detail="Wrapper returned an error")
 
 
@@ -637,7 +660,7 @@ async def wrapper_login_2fa(request: WrapperTwoFactorRequest):
     if response.is_success:
         return {"state": "authenticated"}
     if response.status_code == 401:
-        raise HTTPException(status_code=401, detail="Wrapper 2FA login failed")
+        raise HTTPException(status_code=401, detail=_wrapper_login_error(response, "Wrapper 2FA login failed"))
     raise HTTPException(status_code=502, detail="Wrapper returned an error")
 
 

@@ -57,6 +57,7 @@ temp/
 *.log
 node_modules/
 .next/
+.test-build/
 out/
 src/amdl_backup/
 settings.json

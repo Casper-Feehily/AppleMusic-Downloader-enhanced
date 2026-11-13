@@ -57,7 +57,7 @@ The upstream author also maintains [amll-PiP-player](https://github.com/wenfeng1
 ### Method 1: pip install (recommended)
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.15/applemusic_dl-2.4.15-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.16/applemusic_dl-2.4.16-py3-none-any.whl"
 ```
 
 This fork publishes CLI packages with GitHub Releases; the same-named package on PyPI belongs to the upstream project.
@@ -71,7 +71,7 @@ amdl --help
 For desktop GUI mode, install with desktop dependencies:
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.15/applemusic_dl-2.4.15-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.16/applemusic_dl-2.4.16-py3-none-any.whl"
 ```
 
 ### Method 2: Desktop installers
@@ -118,7 +118,13 @@ Clone wrapper-v2, then run only the command set matching your architecture.
 ```bash
 git clone https://github.com/glomatico/wrapper-v2.git
 cd wrapper-v2
+git checkout 100e0a864e883e03a3ac450a780dd9563fff5271
+curl --fail --location --retry 3 --output amdl-wrapper-patches.py \
+  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.16/wrapper_patches.py &&
+python3 amdl-wrapper-patches.py .
 ```
+
+One-click setup in v2.4.16 automatically applies these same fixes: retries and failure checks for the Rust installer download, and reference-based reading of native build1109 error codes. For manual deployment, run the patch script above successfully before building; unrecognized sources are rejected. Updating the client does not automatically replace existing Wrappers. For existing installations, apply the patch and rebuild in the original wrapper-v2 checkout, preserving its `data/` session directory. The ABI fix improves error diagnostics and does not guarantee successful authentication or fix network failures. Real ALAC downloads and ARM native-library execution have not been verified for this release.
 
 #### Apple Silicon / Linux ARM / Windows on ARM
 

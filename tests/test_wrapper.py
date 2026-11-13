@@ -151,7 +151,46 @@ class WrapperRequestTests(unittest.IsolatedAsyncioTestCase):
                 await server.wrapper_login(request)
 
         self.assertEqual(raised.exception.status_code, 401)
-        self.assertNotIn("token", raised.exception.detail.lower())
+        self.assertNotIn("token", str(raised.exception.detail).lower())
+
+    async def test_login_failure_exposes_only_safe_state_code_and_network_hint(self) -> None:
+        request = WrapperLoginRequest(apple_id="person@example.com", password="secret")
+        for endpoint, payload in (
+            (server.wrapper_login, request),
+            (server.wrapper_login_2fa, server.WrapperTwoFactorRequest(code="123456")),
+        ):
+            with self.subTest(endpoint=endpoint.__name__):
+                response = httpx.Response(401, json={
+                    "state": "failed", "error_code": 8,
+                    "error": "secret person@example.com 123456",
+                    "music_user_token": "private-token", "dsid": "private-id",
+                })
+                with patch.object(server, "_wrapper_request", AsyncMock(return_value=response)):
+                    with self.assertRaises(HTTPException) as raised:
+                        await endpoint(payload)
+                detail = raised.exception.detail
+                self.assertIsInstance(detail, dict)
+                self.assertEqual(detail["auth_state"], "failed")
+                self.assertEqual(detail["error_code"], 8)
+                self.assertEqual(detail["hint"], "check_apple_network")
+                for private in ("secret", "person@example.com", "123456", "private-token", "private-id"):
+                    self.assertNotIn(private, str(detail))
+
+    async def test_login_diagnostics_reject_untrusted_states_and_non_numeric_codes(self) -> None:
+        for body in ([], None, {"state": ["failed"], "error_code": 8}, *(
+            {"state": "private@example.com", "error_code": code}
+            for code in ("8", True, -1574841736, 65536, {"token": "private"})
+        )):
+            with self.subTest(body=body):
+                with patch.object(server, "_wrapper_request", AsyncMock(return_value=httpx.Response(401, json=body))):
+                    with self.assertRaises(HTTPException) as raised:
+                        await server.wrapper_login(WrapperLoginRequest(apple_id="x", password="secret"))
+                detail = raised.exception.detail
+                self.assertIsInstance(detail, dict)
+                self.assertNotIn("auth_state", detail)
+                if not isinstance(body, dict) or body.get("error_code") != 8:
+                    self.assertNotIn("error_code", detail)
+                self.assertNotIn("private", str(detail))
 
     async def test_two_factor_response_does_not_echo_code(self) -> None:
         request = server.WrapperTwoFactorRequest(code="123456")
@@ -379,7 +418,7 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
         errors, downloaded, _logs = await self._run_wrapper_tag_case()
 
         self.assertEqual(errors, 0)
-        self.assertEqual(downloaded, ["/tmp/日本語タイトル.m4a"])
+        self.assertEqual(downloaded, [str(Path("/tmp/日本語タイトル.m4a"))])
 
     async def test_wrapper_keeps_playback_tags_when_localized_tags_fail(self) -> None:
         errors, downloaded, logs = await self._run_wrapper_tag_case(
@@ -387,7 +426,7 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(errors, 0)
-        self.assertEqual(downloaded, ["/tmp/English Title.m4a"])
+        self.assertEqual(downloaded, [str(Path("/tmp/English Title.m4a"))])
         self.assertTrue(any("using Wrapper metadata" in line for line in logs))
 
     async def test_alac_fallback_logs_track_and_actual_codec(self) -> None:

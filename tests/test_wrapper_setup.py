@@ -42,6 +42,31 @@ def _write_apkm(path: Path, libs: dict[str, bytes], *, version: str = APPLE_VERS
 
 
 class BundleTests(unittest.TestCase):
+    def test_unreadable_downloads_keeps_manual_selection_available(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with patch.object(Path, "iterdir", side_effect=PermissionError("Downloads access denied")):
+                self.assertEqual(find_bundles(root), [])
+
+    def test_case_insensitive_scan_returns_each_file_once(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            package = root / "music.apkm"
+            _write_apkm(package, {"libandroidappmusic.so": b"apple"})
+            # Model Windows glob semantics on every test host.
+            with patch.object(Path, "glob", side_effect=lambda *_args: iter([package])):
+                self.assertEqual(find_bundles(root), [package])
+
+    def test_mixed_case_extensions_are_found_without_extra_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            packages = [root / name for name in ("one.apkm", "two.ApKm", "three.APKM")]
+            for package in packages:
+                _write_apkm(package, {"libandroidappmusic.so": b"apple"})
+            (root / "folder.apkm").mkdir()
+            (root / "ignored.apk").write_bytes(b"not an apkm")
+            self.assertEqual(find_bundles(root), sorted(packages))
+
     def test_matching_apkm_is_found_and_libraries_are_verified(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

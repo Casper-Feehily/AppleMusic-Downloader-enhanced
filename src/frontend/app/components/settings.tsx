@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { DEFAULT_FORM, getWrapperStatus } from "../service";
 import { useI18n } from "../i18n";
+import { readWrapperAuthError } from "../wrapper-auth";
 import type { FormState, DependencyCheckItem, DependencyCheckResponse, WrapperStatus, WrapperSetupStatus } from "../service";
 
 function loadSettings(): FormState {
@@ -181,7 +182,8 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
       if (response.status === 202) {
         setNeedsTwoFactor(true);
       } else if (!response.ok) {
-        throw new Error();
+        setAuthError(await readWrapperAuthError(response, t("settings.wrapper_login_failed"),
+          t("settings.wrapper_error_code"), t("settings.wrapper_network_hint")));
       } else {
         setNeedsTwoFactor(false);
         await checkWrapper();
@@ -204,7 +206,11 @@ export default function Settings({ onNavigate }: { onNavigate?: (id: string) => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wrapper_url: form.wrapper_url, code: twoFactorCode }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setAuthError(await readWrapperAuthError(response, t("settings.wrapper_2fa_failed"),
+          t("settings.wrapper_error_code"), t("settings.wrapper_network_hint")));
+        return;
+      }
       setNeedsTwoFactor(false);
       await checkWrapper();
     } catch {

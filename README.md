@@ -56,7 +56,7 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 ### 方式一：pip 安装（推荐）
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.15/applemusic_dl-2.4.15-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.16/applemusic_dl-2.4.16-py3-none-any.whl"
 ```
 
 本增强版的 CLI 安装包随 GitHub Release 发布；PyPI 上的同名包属于原项目。
@@ -70,7 +70,7 @@ amdl --help
 如果需要桌面 GUI 模式，请安装带桌面依赖的版本：
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.15/applemusic_dl-2.4.15-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.16/applemusic_dl-2.4.16-py3-none-any.whl"
 ```
 
 ### 方式二：桌面安装包
@@ -117,7 +117,13 @@ Apple Silicon macOS 桌面版可在“设置 → 本机 Wrapper 配置”中一�
 ```bash
 git clone https://github.com/glomatico/wrapper-v2.git
 cd wrapper-v2
+git checkout 100e0a864e883e03a3ac450a780dd9563fff5271
+curl --fail --location --retry 3 --output amdl-wrapper-patches.py \
+  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.16/wrapper_patches.py &&
+python3 amdl-wrapper-patches.py .
 ```
+
+v2.4.16 的一键部署会自动应用同一组修复：Rust 安装脚本下载重试及失败检查、build1109 原生错误码引用读取。手动部署须先运行上面的补丁脚本并确认成功，再执行以下构建；不匹配的源码会被拒绝。已有 Wrapper 不会随客户端升级自动替换；请在原有 wrapper-v2 工程目录中应用补丁并重新构建，保留其中的 `data/` 会话目录。此补丁修复错误诊断，不能保证解决账号认证或网络故障；尚无本版本真实 ALAC 下载或 ARM 原生库运行验证。
 
 #### Apple Silicon / Linux ARM / Windows on ARM
 

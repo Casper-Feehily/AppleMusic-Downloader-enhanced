@@ -26,11 +26,12 @@ from pathlib import Path, PurePosixPath
 import httpx
 
 from amdl.dependency_manager import _SUBPROCESS_FLAGS
+from amdl.wrapper_patches import apply_wrapper_fixes
 
 logger = logging.getLogger("amdl.wrapper_setup")
 
 WRAPPER_COMMIT = "100e0a864e883e03a3ac450a780dd9563fff5271"
-WRAPPER_REV = "100e0a8"
+WRAPPER_REV = "100e0a8-amdl2"
 WRAPPER_API_VERSION = "0.0.2"
 SOURCE_URL = f"https://codeload.github.com/glomatico/wrapper-v2/tar.gz/{WRAPPER_COMMIT}"
 WRAPPER_DIR = Path.home() / "Library" / "Application Support" / "AppleMusicDownloader" / "wrapper"
@@ -114,13 +115,18 @@ def inspect_bundle(path: Path, *, require_metadata: bool = True) -> dict:
 def find_bundles(downloads: Path | None = None) -> list[Path]:
     downloads = downloads or Path.home() / "Downloads"
     matches: list[Path] = []
-    if not downloads.is_dir():
+    try:
+        if not downloads.is_dir():
+            return matches
+        candidates = sorted(downloads.iterdir())
+    except OSError:
+        # macOS may deny Downloads access while a separately chosen file is usable.
         return matches
-    for path in sorted((*downloads.glob("*.apkm"), *downloads.glob("*.APKM"))):
+    for path in candidates:
         try:
-            if inspect_bundle(path)["compatible"]:
+            if path.suffix.lower() == ".apkm" and path.is_file() and inspect_bundle(path)["compatible"]:
                 matches.append(path)
-        except SetupError:
+        except (SetupError, OSError):
             pass
     return matches
 
@@ -439,6 +445,10 @@ class WrapperSetupManager:
                 raise SetupError("Could not download the pinned wrapper-v2 source") from exc
             extracted = Path(temp) / "source"
             _extract_source(archive, extracted)
+            try:
+                apply_wrapper_fixes(extracted)
+            except (OSError, ValueError) as exc:
+                raise SetupError("Pinned Wrapper source fixes could not be applied") from exc
             _patch_health_endpoint(extracted)
             (extracted / ".amdl-wrapper-commit").write_text(WRAPPER_COMMIT, encoding="utf-8")
             if SOURCE_DIR.exists():

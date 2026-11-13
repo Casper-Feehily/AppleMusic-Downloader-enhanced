@@ -60,6 +60,10 @@ jobs:
         working-directory: src/frontend
         run: npx tsc --noEmit
 
+      - name: Frontend regression tests
+        working-directory: src/frontend
+        run: npm test
+
   # ─────────────────────────────────────────────────────────────
   # CLI wheel and source distribution
   # ─────────────────────────────────────────────────────────────
@@ -137,8 +141,8 @@ jobs:
           dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffmpeg -version
           codesign --verify --deep --strict dist/AppleMusicDownloader-macos-arm64.app
 
-      - name: Verify native update helpers
-        run: python -m unittest discover -s tests -p 'test_update_helpers.py' -v
+      - name: Run full platform regression suite (including native update helpers)
+        run: python -m unittest discover -s tests -v
 
       - name: Verify bundled FFmpeg (Windows)
         if: matrix.os == 'windows'
@@ -239,6 +243,24 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
+
+      - name: Include standalone Wrapper fixes and checksums
+        run: |
+          mkdir -p release-artifacts/wrapper-fixes
+          cp src/amdl/wrapper_patches.py release-artifacts/wrapper-fixes/
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          root = Path('release-artifacts')
+          files = sorted(path for path in root.rglob('*') if path.is_file())
+          names = [path.name for path in files]
+          if len(names) != len(set(names)):
+              raise SystemExit('Duplicate release asset names')
+          (root / 'SHA256SUMS.txt').write_text(''.join(
+              f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n'
+              for path in files
+          ), encoding='utf-8')
+          PY
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

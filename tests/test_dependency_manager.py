@@ -18,7 +18,7 @@ class DependencyManagerTests(TestCase):
             patch("amdl.dependency_manager.shutil.which", return_value=None),
             patch.object(Path, "is_file", side_effect=[True]),
         ):
-            self.assertEqual(find_system_binary("ffmpeg"), "/opt/homebrew/bin/ffmpeg")
+            self.assertEqual(find_system_binary("ffmpeg"), str(Path("/opt/homebrew/bin/ffmpeg")))
 
     def test_apple_silicon_nm3u8dlre_release_url(self) -> None:
         with (
