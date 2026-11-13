@@ -129,7 +129,10 @@ class WindowsHelperTests(unittest.TestCase):
             root = Path(temp)
             app = self.compile_exe(root, "Application", '''using System; using System.IO;
 public class App { public static void Main() {
-File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "restarted.txt"), "yes"); }}''')
+string marker = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "restarted.txt");
+File.WriteAllText(marker + ".tmp", System.Diagnostics.Process.GetCurrentProcess().Id.ToString());
+File.Move(marker + ".tmp", marker);
+System.Threading.Thread.Sleep(250); }}''')
             installer = self.compile_exe(root, "Installer", '''using System; using System.IO;
 public class Installer { public static int Main(string[] args) {
 foreach (string arg in args) { if (arg.StartsWith("/DIR=")) {
@@ -152,6 +155,24 @@ return ''' + ("1" if failed else "0") + "; }}")
                     break
                 time.sleep(0.1)
             self.assertTrue((root / "restarted.txt").exists())
+            # The marker proves launch, not process exit. Windows locks an EXE
+            # while it is running; wait on this fixture's PID before temp cleanup.
+            import ctypes
+            from ctypes import wintypes
+            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+            kernel.OpenProcess.restype = wintypes.HANDLE
+            kernel.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+            kernel.WaitForSingleObject.restype = wintypes.DWORD
+            kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+            handle = kernel.OpenProcess(0x00100000, False, int((root / "restarted.txt").read_text()))
+            if handle:
+                try:
+                    self.assertEqual(kernel.WaitForSingleObject(handle, 10000), 0, "Test app did not exit")
+                finally:
+                    kernel.CloseHandle(handle)
+            else:
+                self.assertEqual(ctypes.get_last_error(), 87, "Could not open test app process")
             self.assertEqual(error_file.exists(), failed)
 
     def test_installs_and_restarts_with_quoted_paths(self):
