@@ -354,7 +354,6 @@ AppleMusic-Downloader/
 ├── docs/
 │   └── api.md             # API documentation
 ├── pyproject.toml          # Package configuration
-├── requirements.txt
 └── README.md
 ```
 
