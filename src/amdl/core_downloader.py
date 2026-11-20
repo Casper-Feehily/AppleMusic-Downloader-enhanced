@@ -946,18 +946,6 @@ async def _download_urls_async(
     _ff_path = find_binary("ffmpeg", ffmpeg_path) or ffmpeg_path
     _nm_path = find_binary("N_m3u8DL-RE", nm3u8dlre_path) or nm3u8dlre_path
 
-    output_names = None
-    if output_layout in ("artist", "flat"):
-        output_names = OutputNames()
-        folder_template = "{artist}" if output_layout == "artist" else ""
-        template_folder_album = folder_template
-        template_folder_compilation = folder_template
-        template_folder_no_album = folder_template
-        template_file_playlist = ""
-        template_file_single_disc = "{title}"
-        template_file_multi_disc = "{title}"
-        template_file_no_album = "{title}"
-
     base_dl = AppleMusicBaseDownloader(
         interface=iface, output_path=str(output_path), temp_path=str(temp_path),
         nm3u8dlre_path=_nm_path, ffmpeg_path=_ff_path, download_mode=download_mode,
@@ -972,6 +960,7 @@ async def _download_urls_async(
         date_tag_template=template_date, exclude_tags=exclude_list,
         **({"truncate": truncate} if truncate is not None else {}),
     )
+    output_names = OutputNames.for_layout(base_dl, output_layout)
 
     # ── override download: run everything in threads, never via asyncio
     # subprocess — Windows SelectorEventLoop (forced for httpx compat)
@@ -1105,19 +1094,11 @@ async def _download_urls_async(
         existing_file = existing_library.find(item.media) if existing_library else None
         if output_names is not None:
             try:
-                if save_playlist and not synced_lyrics_only and item.playlist_file_path:
-                    playlist = item.media.playlist_tags
-                    playlist_identity = str(playlist.playlist_id or playlist.artist)
-                    item.playlist_file_path = str(output_names.reserve(
-                        Path(item.playlist_file_path), playlist_identity,
-                    ))
-                if not existing_file:
-                    final_path = output_names.reserve(Path(item.final_path), item.media.media_id)
-                    item.final_path = str(final_path)
-                    if item.synced_lyrics_path:
-                        item.synced_lyrics_path = str(final_path.with_suffix(Path(item.synced_lyrics_path).suffix))
-                    if item.cover_path:
-                        item.cover_path = str(final_path.with_suffix(Path(item.cover_path).suffix))
+                output_names.assign(
+                    item,
+                    save_playlist=save_playlist and not synced_lyrics_only,
+                    include_media=existing_file is None,
+                )
             except OSError as error:
                 errors += 1
                 log.error('Could not choose an output filename for "%s": %s', title, error)

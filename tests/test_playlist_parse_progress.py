@@ -4,6 +4,8 @@ import asyncio
 import logging
 import sys
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -127,20 +129,25 @@ class CliPlaylistParseTests(unittest.TestCase):
             sample.__class__ = configured_class
             return [item async for item in sample.get_download_item_from_url(PLAYLIST_URL)]
 
-        original_argv = ["amdl", "-c", "cookies.txt", PLAYLIST_URL]
-
-        def gamdl_main():
-            self.assertEqual(sys.argv, ["gamdl", "-c", "cookies.txt", PLAYLIST_URL])
+        def gamdl_main(**_params):
+            self.assertEqual(sys.argv, ["gamdl", *original_argv[1:]])
             self.assertEqual(len(asyncio.run(consume_playlist())), 7)
 
-        with (
-            patch.object(sys, "argv", original_argv),
-            patch.object(gamdl_cli, "main", gamdl_main),
-            capture_logs() as logs,
-        ):
-            cli.main()
-            messages = [entry["event"] for entry in logs]
-            self.assertIn('Resolving track 1/3: "Repeat"', messages)
-            self.assertIn('Parsed 3/3: "Unavailable" (unavailable)', messages)
-            self.assertIs(sys.argv, original_argv)
+        with TemporaryDirectory() as directory:
+            original_argv = [
+                "amdl", "--config-path", str(Path(directory) / "config.ini"),
+                "-c", "cookies.txt", PLAYLIST_URL,
+            ]
+            with (
+                patch.object(sys, "argv", original_argv),
+                patch.object(gamdl_cli.main, "callback", gamdl_main),
+                capture_logs() as logs,
+            ):
+                with self.assertRaises(SystemExit) as result:
+                    cli.main()
+                self.assertEqual(result.exception.code, 0)
+                messages = [entry["event"] for entry in logs]
+                self.assertIn('Resolving track 1/3: "Repeat"', messages)
+                self.assertIn('Parsed 3/3: "Unavailable" (unavailable)', messages)
+                self.assertIs(sys.argv, original_argv)
         self.assertIs(gamdl_cli.AppleMusicDownloader, AppleMusicDownloader)

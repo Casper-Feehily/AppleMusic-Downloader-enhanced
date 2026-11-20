@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 import unittest
 import asyncio
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -23,6 +25,8 @@ class CliRoutingTests(unittest.TestCase):
         original_argv = sys.argv
 
         class Downloader:
+            base = SimpleNamespace()
+
             async def get_download_item_from_url(self, url):
                 yield SimpleNamespace(media=SimpleNamespace(
                     partial=True, error=None, media_metadata={
@@ -36,8 +40,8 @@ class CliRoutingTests(unittest.TestCase):
                 media.partial = False
                 yield SimpleNamespace(media=media)
 
-        def main():
-            self.assertEqual(sys.argv, ["gamdl", PLAYLIST_URL])
+        def main(**_params):
+            self.assertEqual(sys.argv, ["gamdl", *args])
 
             async def parse():
                 return [item async for item in upstream.AppleMusicDownloader().get_download_item_from_url(PLAYLIST_URL)]
@@ -46,13 +50,17 @@ class CliRoutingTests(unittest.TestCase):
 
         logger = SimpleNamespace(bind=lambda **kwargs: SimpleNamespace(info=logs.append))
         with (
+            TemporaryDirectory() as directory,
             patch.object(upstream, "AppleMusicDownloader", Downloader),
-            patch.object(upstream, "main", main),
+            patch.object(upstream.main, "callback", main),
             patch.object(upstream, "logger", logger),
         ):
-            cli_module._passthrough_to_gamdl([PLAYLIST_URL])
+            args = ["--config-path", str(Path(directory) / "config.ini"), PLAYLIST_URL]
+            with self.assertRaises(SystemExit) as result:
+                cli_module._passthrough_to_gamdl(args)
             self.assertIs(upstream.AppleMusicDownloader, Downloader)
 
+        self.assertEqual(result.exception.code, 0)
         self.assertIs(sys.argv, original_argv)
         self.assertTrue(any('Resolving track 1/1: "Test Song"' in line for line in logs))
         self.assertTrue(any('Parsed 1/1: "Test Song"' in line for line in logs))
@@ -62,9 +70,14 @@ class CliRoutingTests(unittest.TestCase):
 
         downloader = upstream.AppleMusicDownloader
         argv = sys.argv
-        with patch.object(upstream, "main", side_effect=RuntimeError("test failure")):
+        with (
+            TemporaryDirectory() as directory,
+            patch.object(upstream.main, "callback", side_effect=RuntimeError("test failure")),
+        ):
             with self.assertRaisesRegex(RuntimeError, "test failure"):
-                cli_module._passthrough_to_gamdl([PLAYLIST_URL])
+                cli_module._passthrough_to_gamdl(
+                    ["--config-path", str(Path(directory) / "config.ini"), PLAYLIST_URL],
+                )
         self.assertIs(upstream.AppleMusicDownloader, downloader)
         self.assertIs(sys.argv, argv)
 

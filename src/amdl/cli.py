@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import sys
+from typing import get_args
 
 import click
 
 from amdl import __version__
+from amdl.output_layout import OutputLayout, OutputNames
 
 
 @click.group(invoke_without_command=True)
@@ -93,8 +95,27 @@ def main() -> None:
     _passthrough_to_gamdl(args)
 
 
+def _remember_output_layout(ctx: click.Context, _option: click.Option, value: OutputLayout) -> None:
+    ctx.meta["output_layout"] = value
+
+
+class _DownloadCommand(click.Command):
+    def get_params(self, ctx: click.Context) -> list[click.Parameter]:
+        # gamdl reads command.params directly to populate its config dataclass.
+        # Add the AMDL option only to Click's parsing and help.
+        return [*super().get_params(ctx), click.Option(
+            ["--output-layout"],
+            type=click.Choice(get_args(OutputLayout)),
+            default="artist_album",
+            show_default=True,
+            expose_value=False,
+            callback=_remember_output_layout,
+            help="Save by artist and album, by artist only, or directly in the output directory.",
+        )]
+
+
 def _passthrough_to_gamdl(args: list[str]) -> None:
-    """Keep gamdl's CLI options and add per-track metadata progress."""
+    """Keep gamdl's CLI options and add AMDL download behavior."""
     from types import SimpleNamespace
 
     from gamdl.cli import cli as gamdl_cli
@@ -102,8 +123,21 @@ def _passthrough_to_gamdl(args: list[str]) -> None:
 
     original_downloader = gamdl_cli.AppleMusicDownloader
     original_argv = sys.argv
+    upstream_command = gamdl_cli.main
+    command = _DownloadCommand(
+        name=upstream_command.name,
+        callback=upstream_command.callback,
+        params=upstream_command.params,
+        context_settings=upstream_command.context_settings,
+        help=upstream_command.help,
+    )
 
     class ProgressDownloader(original_downloader):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            layout = click.get_current_context().meta["output_layout"]
+            self.output_names = OutputNames.for_layout(self.base, layout)
+
         async def get_download_item_from_url(self, url):
             source = SimpleNamespace(get_download_item_from_url=super().get_download_item_from_url)
             log = gamdl_cli.logger.bind(action="Parsing")
@@ -111,10 +145,15 @@ def _passthrough_to_gamdl(args: list[str]) -> None:
             async for item in _parse_items_with_progress(source, url, log):
                 yield item
 
+        async def download(self, item):
+            if self.output_names is not None and item.final_path:
+                self.output_names.assign(item, save_playlist=self.save_playlist)
+            await super().download(item)
+
     try:
         gamdl_cli.AppleMusicDownloader = ProgressDownloader
         sys.argv = ["gamdl", *args]
-        gamdl_cli.main()
+        command(prog_name="amdl")
     finally:
         gamdl_cli.AppleMusicDownloader = original_downloader
         sys.argv = original_argv
@@ -131,6 +170,7 @@ Usage:
 Download options:
   -c, --cookies-path PATH          Path to cookies.txt for cookie-based downloads
   -o, --output-path PATH           Output directory
+  --output-layout LAYOUT           artist_album (default), artist, or flat
   --use-wrapper                    Use Wrapper for account, playback and decryption
   --song-codec-priority CSV        Comma-separated codec priority (e.g. alac,aac-web)
   --synced-lyrics-format FORMAT    Synced lyrics format (lrc, srt, ttml)
@@ -150,5 +190,6 @@ Examples:
   amdl desktop
   amdl -c /path/to/cookies.txt "https://music.apple.com/..."
   amdl -c /path/to/cookies.txt "https://music.apple.com/.../playlist/.../pl..."
+  amdl -c /path/to/cookies.txt -o "./Music" --output-layout flat "https://music.apple.com/..."
   amdl --gamdl-help                          Show all gamdl CLI options
 """
