@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from gamdl.downloader import AppleMusicDownloader
 from gamdl.downloader.types import DownloadItem
@@ -70,7 +70,9 @@ class IncrementalDownloadTests(IsolatedAsyncioTestCase):
             manager._tasks[task.id] = task
             with (
                 patch.object(core_downloader.AppleMusicApi, "create_from_netscape_cookies",
-                             return_value=SimpleNamespace(active_subscription=True)),
+                             return_value=SimpleNamespace(
+                    active_subscription=True, get_playlist=AsyncMock(), get_library_playlist=AsyncMock(),
+                )),
                 patch.object(core_downloader.AppleMusicBaseInterface, "create"),
                 patch.object(AppleMusicDownloader, "get_download_item_from_url", get_items),
                 patch.object(AppleMusicDownloader, "download", download),

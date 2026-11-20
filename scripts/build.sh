@@ -56,6 +56,9 @@ case "$PLATFORM" in
     FFMPEG_ASSET="ffmpeg-darwin-arm64"
     FFMPEG_SOURCE="$ROOT_DIR/bin/ffmpeg-darwin-arm64.unsigned"
     FFMPEG_DEST="$ROOT_DIR/bin/ffmpeg"
+    FFPROBE_SOURCE="$ROOT_DIR/bin/ffprobe-darwin-arm64.unsigned"
+    FFPROBE_DEST="$ROOT_DIR/bin/ffprobe"
+    FFPROBE_SHA="bb2db6f5d8cef919da12fbf592119a987202a8c060a886f3cab091f9cab90b64"
     FFMPEG_SHA="a90e3db6a3fd35f6074b013f948b1aa45b31c6375489d39e572bea3f18336584"
     LICENSE_ASSET="darwin-arm64.LICENSE"
     LICENSE_SHA="cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2"
@@ -65,6 +68,9 @@ case "$PLATFORM" in
   windows)
     FFMPEG_ASSET="ffmpeg-win32-x64"
     FFMPEG_DEST="$ROOT_DIR/bin/ffmpeg.exe"
+    FFPROBE_SOURCE="$ROOT_DIR/bin/ffprobe.exe"
+    FFPROBE_DEST="$FFPROBE_SOURCE"
+    FFPROBE_SHA="3a7e2dc003dc2cd1472827e4c7c4f056ae1ae0ae7c5bbc580c99b49827351ba4"
     FFMPEG_SOURCE="$FFMPEG_DEST"
     FFMPEG_SHA="04e1307997530f9cf2fe35cba2ca7e8875ca91da02f89d6c7243df819c94ad00"
     LICENSE_ASSET="win32-x64.LICENSE"
@@ -79,22 +85,26 @@ BIN_DIR="$ROOT_DIR/bin"
 mkdir -p "$BIN_DIR"
 if [[ -n "$FFMPEG_DEST" ]]; then
   download_verified "$FFMPEG_BASE/$FFMPEG_ASSET" "$FFMPEG_SOURCE" "$FFMPEG_SHA"
+  download_verified "$FFMPEG_BASE/${FFMPEG_ASSET/ffmpeg/ffprobe}" "$FFPROBE_SOURCE" "$FFPROBE_SHA"
   if [[ "$FFMPEG_SOURCE" != "$FFMPEG_DEST" ]]; then
     cp "$FFMPEG_SOURCE" "$FFMPEG_DEST"
+    cp "$FFPROBE_SOURCE" "$FFPROBE_DEST"
   fi
   download_verified "$FFMPEG_BASE/$LICENSE_ASSET" "$THIRD_PARTY_DIR/LICENSE" "$LICENSE_SHA"
   download_verified "$FFMPEG_BASE/$README_ASSET" "$THIRD_PARTY_DIR/README" "$README_SHA"
-  chmod +x "$FFMPEG_DEST"
+  chmod +x "$FFMPEG_DEST" "$FFPROBE_DEST"
   if [[ "$PLATFORM" == "macos" ]]; then
     codesign --force --sign - "$FFMPEG_DEST"
+    codesign --force --sign - "$FFPROBE_DEST"
   fi
   "$FFMPEG_DEST" -version
+  "$FFPROBE_DEST" -version
 fi
 
 echo ">>> Downloading N_m3u8DL-RE for $PLATFORM..."
 BINARY_FLAGS=()
 if [[ -n "$FFMPEG_DEST" ]]; then
-  BINARY_FLAGS+=("bin/${FFMPEG_DEST##*/}")
+  BINARY_FLAGS+=("bin/${FFMPEG_DEST##*/}" "bin/${FFPROBE_DEST##*/}")
 fi
 
 # Temporarily disable set -e so a failed download doesn't kill the build.
@@ -164,7 +174,7 @@ esac
 set -o pipefail
 set -e
 
-if [[ ${#BINARY_FLAGS[@]} -gt 1 ]] || [[ ${#BINARY_FLAGS[@]} -eq 1 && "${BINARY_FLAGS[0]}" == *N_m3u8DL* ]]; then
+if [[ " ${BINARY_FLAGS[*]} " == *" bin/N_m3u8DL-RE"* ]]; then
   echo ">>> N_m3u8DL-RE bundled: $(ls -lh "$BIN_DIR"/N_m3u8DL-RE* 2>/dev/null | awk '{print $5, $NF}')"
 else
   echo ">>> N_m3u8DL-RE skipped (will be auto-downloaded at runtime)"

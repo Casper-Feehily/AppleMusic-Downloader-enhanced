@@ -139,6 +139,7 @@ jobs:
           test -x dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffmpeg
           test -f dist/AppleMusicDownloader-macos-arm64.app/Contents/Resources/third_party/ffmpeg/LICENSE
           dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffmpeg -version
+          dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffprobe -version
           codesign --verify --deep --strict dist/AppleMusicDownloader-macos-arm64.app
 
       - name: Run full platform regression suite (including native update helpers)
@@ -151,6 +152,10 @@ jobs:
           $ffmpeg = 'dist/AppleMusicDownloader-windows-x64/bin/ffmpeg.exe'
           if (-not (Test-Path $ffmpeg)) { throw "Bundled ffmpeg.exe is missing" }
           & $ffmpeg -version
+          $ffprobe = Join-Path (Split-Path $ffmpeg) "ffprobe.exe"
+          if (-not (Test-Path $ffprobe)) { throw "Bundled ffprobe.exe is missing" }
+          & $ffprobe -version
+          if ($LASTEXITCODE -ne 0) { throw "Bundled ffprobe.exe failed" }
           if (-not (Test-Path 'dist/AppleMusicDownloader-windows-x64/third_party/ffmpeg/LICENSE')) { throw "FFmpeg license is missing" }
 
       - name: Build Windows installer
@@ -173,6 +178,7 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "Installer exited with code $($process.ExitCode)" }
           $ffmpeg = Join-Path $installDir 'bin/ffmpeg.exe'
           if (-not (Test-Path $ffmpeg)) { throw "Installed app does not contain FFmpeg" }
+          if (-not (Test-Path (Join-Path $installDir "bin/ffprobe.exe"))) { throw "Installed app does not contain ffprobe" }
           & $ffmpeg -version
           if (-not (Test-Path (Join-Path $installDir 'third_party/ffmpeg/LICENSE'))) { throw "Installed app does not contain the FFmpeg license" }
 

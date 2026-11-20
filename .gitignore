@@ -46,10 +46,15 @@ htmlcov/
 .coverage.*
 coverage.xml
 
-# ── IDE / Editor ───────────────────────────────────────────
-.qoder/
+# ── IDE / Editor / Local AI tools ──────────────────────────
 .vscode/
 .idea/
+.qoder/
+.codex/
+.agents/
+.claude/
+.cursor/
+.windsurf/
 *.sublime-*
 
 # ── Project-specific ───────────────────────────────────────
@@ -74,9 +79,6 @@ AGENTS.md
 CLAUDE.md
 GEMINI.md
 SKILL.md
-.agents/
-.claude/
-.codex/
 .superpowers/
 docs/superpowers/
 /rebuild.md

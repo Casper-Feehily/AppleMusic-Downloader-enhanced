@@ -291,6 +291,8 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
             get_webplayback.side_effect = webplayback_error
         api = SimpleNamespace(
             active_subscription=True,
+            get_playlist=AsyncMock(),
+            get_library_playlist=AsyncMock(),
             get_webplayback=get_webplayback,
         )
         wrapper_api = SimpleNamespace(get_playback=AsyncMock(return_value={
@@ -395,7 +397,9 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_wrapper_api_is_passed_to_base_interface(self) -> None:
         wrapper_api = object()
-        apple_music_api = SimpleNamespace(active_subscription=True)
+        apple_music_api = SimpleNamespace(
+            active_subscription=True, get_playlist=AsyncMock(), get_library_playlist=AsyncMock(),
+        )
         with (
             patch.object(core_downloader.WrapperApi, "create", AsyncMock(return_value=wrapper_api)),
             patch.object(
@@ -461,7 +465,9 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
             patch.object(
                 core_downloader.AppleMusicApi,
                 "create_from_wrapper",
-                AsyncMock(return_value=SimpleNamespace(active_subscription=True)),
+                AsyncMock(return_value=SimpleNamespace(
+                    active_subscription=True, get_playlist=AsyncMock(), get_library_playlist=AsyncMock(),
+                )),
             ),
             patch.object(core_downloader.AppleMusicBaseInterface, "create", AsyncMock(return_value=object())),
             patch.object(core_downloader, "AppleMusicInterface", return_value=object()),
@@ -513,7 +519,9 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
             patch.object(
                 core_downloader.AppleMusicApi,
                 "create_from_wrapper",
-                AsyncMock(return_value=SimpleNamespace(active_subscription=True)),
+                AsyncMock(return_value=SimpleNamespace(
+                    active_subscription=True, get_playlist=AsyncMock(), get_library_playlist=AsyncMock(),
+                )),
             ),
             patch.object(core_downloader.AppleMusicBaseInterface, "create", AsyncMock(return_value=object())),
             patch.object(core_downloader, "AppleMusicInterface", return_value=object()),

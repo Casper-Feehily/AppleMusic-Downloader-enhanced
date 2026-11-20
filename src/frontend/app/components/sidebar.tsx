@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
-import { useCheckUpdate, useDesktopUpdate } from "../service";
+import { useBackendStatus, useCheckUpdate, useDesktopUpdate } from "../service";
 import { useToast } from "./Toast";
 import UpdateModal from "./update-modal";
 
@@ -48,6 +48,7 @@ const NAV_ITEMS = [
 export default function Sidebar({ active, onNavigate }: { active: string; onNavigate: (id: string) => void }) {
   const { t, locale, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
+  const { version, check: checkBackend } = useBackendStatus();
   const { updateInfo, checking, check } = useCheckUpdate();
   const desktopUpdate = useDesktopUpdate();
   const toast = useToast();
@@ -57,8 +58,9 @@ export default function Sidebar({ active, onNavigate }: { active: string; onNavi
   const showUpdateError = updateStatus?.phase === "error" && updateStatus.error !== dismissedError;
 
   useEffect(() => {
+    checkBackend();
     check();
-  }, [check]);
+  }, [check, checkBackend]);
 
   const handleVersionClick = async () => {
     if (updateInfo?.has_update || (updateStatus && updateStatus.phase !== "idle")) {
@@ -258,7 +260,7 @@ export default function Sidebar({ active, onNavigate }: { active: string; onNavi
               <span className="text-[10.5px] truncate" style={{ color: "var(--text-muted)" }}>
                 {updateInfo?.has_update
                   ? `v${updateInfo.current_version} → v${updateInfo.latest_version}`
-                  : updateInfo ? `v${updateInfo.current_version}` : t("update.check")}
+                  : (updateInfo?.current_version || version) ? `v${updateInfo?.current_version || version}` : t("update.check")}
               </span>
               {updateInfo?.has_update && (
                 <span className="ml-auto rounded bg-amber-500/15 px-1 py-0.5 text-[8.5px] font-semibold text-amber-500 uppercase tracking-wider">
