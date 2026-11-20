@@ -27,6 +27,8 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 
 本项目基于 [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader) 开发，并使用了 [gamdl (Glomatico&#39;s Apple Music Downloader)](https://github.com/glomatico/gamdl) 和 [yt-dlp](https://github.com/yt-dlp/yt-dlp) 的代码。感谢原项目及所有依赖项目的贡献者。
 
+上游项目由 [Hack Club](https://hackclub.com) 赞助。Hack Club 是一个为高中生和青年开发者提供开源项目支持的非营利社区。 [赞助上游项目](https://hcb.hackclub.com/donations/start/easttechcrew)
+
 上游作者还维护了 [amll-PiP-player](https://github.com/wenfeng110402/amll-pip-player)，可以为本地音频配对 TTML 歌词并以画中画显示。
 
 ---

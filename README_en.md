@@ -27,6 +27,8 @@ The project offers two usage modes:
 
 This project is based on [wenfeng110402/AppleMusic-Downloader](https://github.com/wenfeng110402/AppleMusic-Downloader) and uses code from [gamdl (Glomatico's Apple Music Downloader)](https://github.com/glomatico/gamdl) and [yt-dlp](https://github.com/yt-dlp/yt-dlp). Thanks to the upstream project and all dependency contributors.
 
+The upstream project is sponsored by [Hack Club](https://hackclub.com), a nonprofit community that supports open-source projects by high school students and young developers. [Support the upstream project](https://hcb.hackclub.com/donations/start/easttechcrew)
+
 The upstream author also maintains [amll-PiP-player](https://github.com/wenfeng110402/amll-pip-player), which pairs local audio with TTML lyrics and displays them in picture-in-picture.
 
 ---
