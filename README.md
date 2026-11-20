@@ -58,7 +58,7 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 ### 方式一：pip 安装（推荐）
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/applemusic_dl-2.4.18-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.19/applemusic_dl-2.4.19-py3-none-any.whl"
 ```
 
 本增强版的 CLI 安装包随 GitHub Release 发布；PyPI 上的同名包属于原项目。
@@ -72,7 +72,7 @@ amdl --help
 如果需要桌面 GUI 模式，请安装带桌面依赖的版本：
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/applemusic_dl-2.4.18-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.19/applemusic_dl-2.4.19-py3-none-any.whl"
 ```
 
 ### 方式二：桌面安装包
@@ -122,7 +122,7 @@ git clone https://github.com/glomatico/wrapper-v2.git
 cd wrapper-v2
 git checkout 100e0a864e883e03a3ac450a780dd9563fff5271
 curl --fail --location --retry 3 --output amdl-wrapper-patches.py \
-  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/wrapper_patches.py &&
+  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.19/wrapper_patches.py &&
 python3 amdl-wrapper-patches.py .
 ```
 
@@ -232,6 +232,12 @@ amdl -c /path/to/cookies.txt \
 
 # 指定输出目录
 amdl -c /path/to/cookies.txt -o "./My Music" "https://music.apple.com/..."
+```
+
+目录结构由 `--output-layout` 控制。默认 `artist_album` 沿用歌手 / 专辑和自定义模板。`artist` 只建歌手文件夹，`flat` 直接保存到 `-o` 指定的目录。后两种方式使用歌名，遇到重名时才加 `（1）`、`（2）`。
+
+```bash
+amdl -c /path/to/cookies.txt -o "./My Music" --output-layout flat "https://music.apple.com/..."
 ```
 
 ---

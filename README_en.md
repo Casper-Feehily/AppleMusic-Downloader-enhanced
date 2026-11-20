@@ -59,7 +59,7 @@ The upstream author also maintains [amll-PiP-player](https://github.com/wenfeng1
 ### Method 1: pip install (recommended)
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/applemusic_dl-2.4.18-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.19/applemusic_dl-2.4.19-py3-none-any.whl"
 ```
 
 This fork publishes CLI packages with GitHub Releases; the same-named package on PyPI belongs to the upstream project.
@@ -73,7 +73,7 @@ amdl --help
 For desktop GUI mode, install with desktop dependencies:
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/applemusic_dl-2.4.18-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.19/applemusic_dl-2.4.19-py3-none-any.whl"
 ```
 
 ### Method 2: Desktop installers
@@ -123,7 +123,7 @@ git clone https://github.com/glomatico/wrapper-v2.git
 cd wrapper-v2
 git checkout 100e0a864e883e03a3ac450a780dd9563fff5271
 curl --fail --location --retry 3 --output amdl-wrapper-patches.py \
-  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/wrapper_patches.py &&
+  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.19/wrapper_patches.py &&
 python3 amdl-wrapper-patches.py .
 ```
 
@@ -233,6 +233,12 @@ amdl -c /path/to/cookies.txt \
 
 # Specify output directory
 amdl -c /path/to/cookies.txt -o "./My Music" "https://music.apple.com/..."
+```
+
+Use `--output-layout` to choose the folder structure. The default, `artist_album`, uses artist and album folders or your configured templates. `artist` uses one folder per track artist. `flat` saves files directly to the directory set by `-o`. Artist-only and flat layouts use track titles and add `（1）`, `（2）`, and so on for duplicate names.
+
+```bash
+amdl -c /path/to/cookies.txt -o "./My Music" --output-layout flat "https://music.apple.com/..."
 ```
 
 ---
