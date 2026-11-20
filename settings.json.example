@@ -5,6 +5,7 @@
   "wrapper_decrypt_host": "127.0.0.1",
   "wrapper_decrypt_port": 10020,
   "output_path": "./Apple Music",
+  "output_layout": "artist_album",
   "temp_path": "./temp",
   "ffmpeg_path": "ffmpeg",
   "mp4box_path": "MP4Box",

@@ -335,6 +335,7 @@ class TaskManager:
                 wrapper_decrypt_host=kwargs.get("wrapper_decrypt_host", "127.0.0.1"),
                 wrapper_decrypt_port=kwargs.get("wrapper_decrypt_port", 10020),
                 output_path=kwargs.get("output_path", Path("./Apple Music")),
+                output_layout=kwargs.get("output_layout", "artist_album"),
                 existing_library_path=library_path,
                 temp_path=kwargs.get("temp_path", Path("./temp")),
                 wvd_path=kwargs.get("wvd_path"),

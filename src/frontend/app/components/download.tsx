@@ -151,8 +151,8 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
   };
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto">
-      <div className="w-full max-w-[480px] px-8">
+    <div className="flex flex-1 flex-col items-center justify-center-safe overflow-y-auto">
+      <div className="w-full max-w-[480px] px-8 py-5">
 
         {/* ── Language switcher ──
         <div className="mb-6 flex justify-center">
@@ -264,6 +264,21 @@ export default function Download({ onNavigate }: { onNavigate?: (id: string) => 
             <button className="btn-secondary shrink-0 text-[11px]" onClick={() => browseFolder(outputInput.current, (path) => set("output_path", path))}>
               {t("download.output.browse")}
             </button>
+          </div>
+          <div>
+            <label htmlFor="output-layout" className="mb-1.5 block text-[10.5px] font-medium" style={{ color: "var(--text-dim)" }}>
+              {t("download.output_layout")}
+            </label>
+            <select
+              id="output-layout"
+              className="input"
+              value={form.output_layout}
+              onChange={(e) => set("output_layout", e.target.value)}
+            >
+              <option value="artist_album">{t("download.output_layout.artist_album")}</option>
+              <option value="artist">{t("download.output_layout.artist")}</option>
+              <option value="flat">{t("download.output_layout.flat")}</option>
+            </select>
           </div>
           <label htmlFor="existing-library" className="block pt-1 text-[10.5px] font-medium" style={{ color: "var(--text-dim)" }}>
             {t("download.existing_library")}

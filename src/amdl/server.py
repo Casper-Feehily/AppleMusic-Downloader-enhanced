@@ -35,6 +35,7 @@ from amdl.enums import (
     UploadedVideoQuality,
 )
 from amdl import __version__
+from amdl.output_layout import OutputLayout
 from amdl.task_manager import get_task_manager
 from amdl.dependency_manager import (
     DATA_DIR,
@@ -209,6 +210,7 @@ class DownloadRequest(BaseModel):
     wrapper_decrypt_host: str = Field(default="127.0.0.1")
     wrapper_decrypt_port: int = Field(default=10020, ge=1, le=65535)
     output_path: str = Field(default="./Apple Music")
+    output_layout: OutputLayout = "artist_album"
     existing_library_path: str | None = Field(default=None)
     temp_path: str = Field(default="./temp")
     wvd_path: str | None = Field(default=None)

@@ -65,6 +65,7 @@ from gamdl.interface.exceptions import (
 from gamdl.interface.types import Cover, DecryptionKeyAv, StreamInfoAv
 
 from amdl.existing_library import ExistingLibrary, write_existing_playlist_entry
+from amdl.output_layout import OutputLayout, OutputNames
 
 LogCallback = Callable[[str], None]
 class PlaylistParseProgress(TypedDict):
@@ -791,6 +792,7 @@ async def _download_urls_async(
     wrapper_decrypt_host: str = "127.0.0.1",
     wrapper_decrypt_port: int = 10020,
     output_path: Path = Path("./Apple Music"),
+    output_layout: OutputLayout = "artist_album",
     existing_library_path: Path | None = None,
     temp_path: Path = Path("./temp"),
     wvd_path: Path | None = None,
@@ -944,6 +946,18 @@ async def _download_urls_async(
     _ff_path = find_binary("ffmpeg", ffmpeg_path) or ffmpeg_path
     _nm_path = find_binary("N_m3u8DL-RE", nm3u8dlre_path) or nm3u8dlre_path
 
+    output_names = None
+    if output_layout in ("artist", "flat"):
+        output_names = OutputNames()
+        folder_template = "{artist}" if output_layout == "artist" else ""
+        template_folder_album = folder_template
+        template_folder_compilation = folder_template
+        template_folder_no_album = folder_template
+        template_file_playlist = ""
+        template_file_single_disc = "{title}"
+        template_file_multi_disc = "{title}"
+        template_file_no_album = "{title}"
+
     base_dl = AppleMusicBaseDownloader(
         interface=iface, output_path=str(output_path), temp_path=str(temp_path),
         nm3u8dlre_path=_nm_path, ffmpeg_path=_ff_path, download_mode=download_mode,
@@ -1089,6 +1103,26 @@ async def _download_urls_async(
 
         title = item.media.media_metadata.get("attributes", {}).get("name", "?") if isinstance(item.media.media_metadata, dict) else "?"
         existing_file = existing_library.find(item.media) if existing_library else None
+        if output_names is not None:
+            try:
+                if save_playlist and not synced_lyrics_only and item.playlist_file_path:
+                    playlist = item.media.playlist_tags
+                    playlist_identity = str(playlist.playlist_id or playlist.artist)
+                    item.playlist_file_path = str(output_names.reserve(
+                        Path(item.playlist_file_path), playlist_identity,
+                    ))
+                if not existing_file:
+                    final_path = output_names.reserve(Path(item.final_path), item.media.media_id)
+                    item.final_path = str(final_path)
+                    if item.synced_lyrics_path:
+                        item.synced_lyrics_path = str(final_path.with_suffix(Path(item.synced_lyrics_path).suffix))
+                    if item.cover_path:
+                        item.cover_path = str(final_path.with_suffix(Path(item.cover_path).suffix))
+            except OSError as error:
+                errors += 1
+                log.error('Could not choose an output filename for "%s": %s', title, error)
+                continue
+
         if existing_file:
             try:
                 if save_playlist and item.playlist_file_path:

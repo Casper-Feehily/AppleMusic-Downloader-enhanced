@@ -12,6 +12,7 @@ export interface FormState {
   wrapper_decrypt_host: string;
   wrapper_decrypt_port: number;
   output_path: string;
+  output_layout: "artist_album" | "artist" | "flat";
   temp_path: string;
   ffmpeg_path: string;
   mp4box_path: string;
@@ -120,6 +121,7 @@ export const DEFAULT_FORM: FormState = {
   wrapper_decrypt_host: "127.0.0.1",
   wrapper_decrypt_port: 10020,
   output_path: "./Apple Music",
+  output_layout: "artist_album",
   temp_path: "./temp",
   ffmpeg_path: "ffmpeg",
   mp4box_path: "MP4Box",
@@ -208,6 +210,7 @@ export function useSubmitTask(onSuccess?: () => void) {
       wrapper_decrypt_host: form.wrapper_decrypt_host.trim(),
       wrapper_decrypt_port: form.wrapper_decrypt_port,
       output_path: form.output_path.trim(),
+      output_layout: form.output_layout,
       existing_library_path: existingLibraryPath.trim() || null,
       temp_path: form.temp_path.trim(),
       ffmpeg_path: form.ffmpeg_path.trim(),

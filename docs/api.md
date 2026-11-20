@@ -122,6 +122,7 @@ Submit a download task.
   "wrapper_decrypt_port": 10020,
 
   "output_path": "./Apple Music",
+  "output_layout": "artist_album",
   "existing_library_path": null,
   "temp_path": "./temp",
   "ffmpeg_path": "ffmpeg",
@@ -152,6 +153,8 @@ Submit a download task.
 **Optional fields with defaults shown above.** Omit or pass `null` for defaults.
 
 Set `no_synced_lyrics` to skip fetching lyrics, including plain lyrics embedded in audio. Set `synced_lyrics_only` to save synchronized lyrics without downloading audio or video.
+
+`output_layout` accepts `artist_album` (the existing directory and filename templates), `artist` (one folder per track artist), or `flat` (directly under `output_path`). The latter two use the track title for the filename and append `（1）`, `（2）`, and so on for duplicate names in the same folder. Lyrics and covers share the track's basename.
 
 Set `existing_library_path` to an existing directory on the server to skip songs found there or in its subdirectories. The task matches Apple Music song IDs or embedded title, artist, and album tags. Missing songs still go to `output_path`.
 
