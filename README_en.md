@@ -59,7 +59,7 @@ The upstream author also maintains [amll-PiP-player](https://github.com/wenfeng1
 ### Method 1: pip install (recommended)
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.17/applemusic_dl-2.4.17-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/applemusic_dl-2.4.18-py3-none-any.whl"
 ```
 
 This fork publishes CLI packages with GitHub Releases; the same-named package on PyPI belongs to the upstream project.
@@ -73,7 +73,7 @@ amdl --help
 For desktop GUI mode, install with desktop dependencies:
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.17/applemusic_dl-2.4.17-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/applemusic_dl-2.4.18-py3-none-any.whl"
 ```
 
 ### Method 2: Desktop installers
@@ -82,12 +82,13 @@ Download the installer for your system from the [Releases](https://github.com/Ca
 
 - Windows: run `AppleMusicDownloader-Setup-windows-x64.exe`
 - Apple Silicon Mac: open `AppleMusicDownloader-macos-arm64.dmg` and drag the app into Applications
+- Intel Mac: open `AppleMusicDownloader-macos-x64.dmg` and drag the app into Applications
 
 When a new version is available, click the version at the bottom of the sidebar and choose **Update Now**. The desktop app downloads the matching installer from this fork's GitHub Releases, verifies GitHub's SHA-256 digest and shows progress. Once all queued downloads finish, it closes, installs and reopens automatically, preserving settings and music. **Continue in Background** hides the dialog while the update continues.
 
 One-click updates support installed Windows x64 and Apple Silicon macOS apps in writable locations. Move the Mac app out of the DMG first. Missing checksums, network errors or failed verification stop the update and leave manual download available. macOS replacement failures attempt to restore and reopen the previous app; Windows installation errors are logged under `updates` in the app data directory. Older versions need one manual installation of a version containing this feature before they can update themselves.
 
-Windows and Apple Silicon macOS installers bundle FFmpeg, so no first-launch download is required. The binary comes from pinned [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1); license and build information are included under `third_party/ffmpeg/`. See [FFmpeg Legal](https://ffmpeg.org/legal.html) for source and distribution details.
+Windows and macOS installers bundle FFmpeg and ffprobe, so no first-launch download is required. The binary comes from pinned [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1); license and build information are included under `third_party/ffmpeg/`. See [FFmpeg Legal](https://ffmpeg.org/legal.html) for source and distribution details.
 
 ### Method 3: From source
 
@@ -122,7 +123,7 @@ git clone https://github.com/glomatico/wrapper-v2.git
 cd wrapper-v2
 git checkout 100e0a864e883e03a3ac450a780dd9563fff5271
 curl --fail --location --retry 3 --output amdl-wrapper-patches.py \
-  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.17/wrapper_patches.py &&
+  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/wrapper_patches.py &&
 python3 amdl-wrapper-patches.py .
 ```
 
@@ -255,6 +256,8 @@ python -m amdl
 ```
 
 The desktop app is built on pywebview and works on Windows, macOS, and Linux.
+
+In the download screen, choose **Folder structure** to organize downloads by artist and album, by artist only, or directly in the output folder. The last two options use track titles and add `（1）`, `（2）`, and so on for duplicate names.
 
 To download updates to a playlist, choose your previous download folder under **Incremental download**. The app checks song tags in that folder and its subfolders, skips songs it finds, and saves missing songs to **Output Folder**. Both fields can point to the same folder. Clear the incremental folder to use regular downloading.
 

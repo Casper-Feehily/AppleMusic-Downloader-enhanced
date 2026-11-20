@@ -58,7 +58,7 @@ AppleMusic Downloader 是一个 Apple Music 下载工具，支持歌曲、音乐
 ### 方式一：pip 安装（推荐）
 
 ```bash
-pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.17/applemusic_dl-2.4.17-py3-none-any.whl"
+pip install --upgrade "https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/applemusic_dl-2.4.18-py3-none-any.whl"
 ```
 
 本增强版的 CLI 安装包随 GitHub Release 发布；PyPI 上的同名包属于原项目。
@@ -72,7 +72,7 @@ amdl --help
 如果需要桌面 GUI 模式，请安装带桌面依赖的版本：
 
 ```bash
-pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.17/applemusic_dl-2.4.17-py3-none-any.whl"
+pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/applemusic_dl-2.4.18-py3-none-any.whl"
 ```
 
 ### 方式二：桌面安装包
@@ -81,12 +81,13 @@ pip install --upgrade "applemusic-dl[desktop] @ https://github.com/Casper-Feehil
 
 - Windows：运行 `AppleMusicDownloader-Setup-windows-x64.exe`
 - Apple Silicon Mac：打开 `AppleMusicDownloader-macos-arm64.dmg`，将应用拖入“应用程序”
+- Intel Mac：打开 `AppleMusicDownloader-macos-x64.dmg`，将应用拖入“应用程序”
 
 桌面版发现新版本后，可点击左侧底部版本号，在更新弹窗中选择「一键更新」。程序会从本增强版 GitHub Releases 下载对应系统的安装包，核对 GitHub 提供的 SHA-256 校验值并显示进度；下载任务全部结束后自动关闭、安装并重新打开，保留设置和已下载的音乐。更新进行时可选择「后台继续」。
 
 一键更新适用于 Windows x64 和 Apple Silicon macOS 已安装的桌面应用，应用所在目录需要可写；Mac 请先将应用移出 DMG。没有校验值、网络失败或校验不通过时会停止更新并显示错误，仍可使用「前往下载更新」手动下载安装包。macOS 安装失败时会尝试恢复并打开旧版应用；Windows 安装错误会保存在应用数据目录 `updates` 下的日志中。旧版程序需要先手动安装一次包含本功能的新版，之后才能一键更新。
 
-Windows 与 Apple Silicon macOS 安装包已内置 FFmpeg，无需首次启动下载。二进制来自固定的 [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1)；许可证与构建说明位于安装包的 `third_party/ffmpeg/`，源码与分发说明见 [FFmpeg Legal](https://ffmpeg.org/legal.html)。
+Windows 和 macOS 安装包已内置 FFmpeg 和 ffprobe，无需首次启动下载。二进制来自固定的 [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1)；许可证与构建说明位于安装包的 `third_party/ffmpeg/`，源码与分发说明见 [FFmpeg Legal](https://ffmpeg.org/legal.html)。
 
 ### 方式三：从源码运行
 
@@ -121,7 +122,7 @@ git clone https://github.com/glomatico/wrapper-v2.git
 cd wrapper-v2
 git checkout 100e0a864e883e03a3ac450a780dd9563fff5271
 curl --fail --location --retry 3 --output amdl-wrapper-patches.py \
-  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.17/wrapper_patches.py &&
+  https://github.com/Casper-Feehily/AppleMusic-Downloader-enhanced/releases/download/v2.4.18/wrapper_patches.py &&
 python3 amdl-wrapper-patches.py .
 ```
 
@@ -254,6 +255,8 @@ python -m amdl
 ```
 
 桌面应用基于 pywebview，在 Windows、macOS、Linux 上均可用。
+
+下载页的 **目录结构** 可选歌手 / 专辑、仅按歌手或直接保存到输出目录。后两种方式用歌名保存，遇到重名时依次加上 `（1）`、`（2）`。
 
 下载旧歌单的更新时，在下载页的 **增量下载** 一栏选择上次下载的文件夹。程序会检查该目录及其子目录中的歌曲标签，跳过已存在的歌曲，并把缺少的歌曲保存到 **输出目录**。两个目录可以选同一个，清空增量下载目录即可按普通模式下载。
 
