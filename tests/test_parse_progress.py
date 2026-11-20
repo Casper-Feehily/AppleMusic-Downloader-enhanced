@@ -32,7 +32,7 @@ class ParseProgressTests(unittest.IsolatedAsyncioTestCase):
 
         async for _ in core_downloader._parse_items_with_progress(
             Downloader(), "artist", logging.getLogger("test.parse"),
-            lambda *update: updates.append(update),
+            lambda update: updates.append(tuple(update.values())),
         ):
             pass
         self.assertEqual(updates, [(0, None, ""), (0, 2, ""), (1, 2, "0/0"),
@@ -56,7 +56,7 @@ class ParseProgressTests(unittest.IsolatedAsyncioTestCase):
 
         async for _ in core_downloader._parse_items_with_progress(
             Downloader(), "playlist", logging.getLogger("test.parse"),
-            lambda *update: updates.append(update),
+            lambda update: updates.append(tuple(update.values())),
         ):
             pass
         self.assertEqual(updates[-1], (100, 100, "Song 99"))
@@ -78,8 +78,8 @@ class ParseProgressTests(unittest.IsolatedAsyncioTestCase):
             }},
         )
 
-        async def report(completed, total, title):
-            updates.append((completed, total, title))
+        async def report(update):
+            updates.append(tuple(update.values()))
 
         class Downloader:
             async def get_download_item_from_url(self, url):
@@ -114,7 +114,7 @@ class ParseProgressTests(unittest.IsolatedAsyncioTestCase):
         for url in ("one", "two"):
             async for _ in core_downloader._parse_items_with_progress(
                 Downloader(), url, logging.getLogger("test.parse"),
-                lambda *update: updates.append(update),
+                lambda update: updates.append(tuple(update.values())),
             ):
                 pass
         self.assertEqual(updates, [(0, None, ""), (1, None, "one"),
@@ -128,7 +128,7 @@ class ParseProgressTests(unittest.IsolatedAsyncioTestCase):
         snapshots = []
 
         async def download(**kwargs):
-            await kwargs["parse_progress_callback"](3, 10, "Third song")
+            await kwargs["parse_progress_callback"]({"completed": 3, "total": 10, "current_title": "Third song"})
             snapshots.append(TaskInfoResponse(**task.to_dict()))
             return 3
 
@@ -149,7 +149,7 @@ class ParseProgressTests(unittest.IsolatedAsyncioTestCase):
         socket = SimpleNamespace(send_json=AsyncMock())
 
         async def download(**kwargs):
-            await kwargs["parse_progress_callback"](1, 2, "Second")
+            await kwargs["parse_progress_callback"]({"completed": 1, "total": 2, "current_title": "Second"})
             await manager.subscribe(task.id, socket)
             snapshot = socket.send_json.call_args.args[0]
             self.assertEqual(snapshot["phase"], "parsing")
@@ -170,7 +170,7 @@ class ParseProgressTests(unittest.IsolatedAsyncioTestCase):
 
         async def download(**kwargs):
             task.cancelled = True
-            await kwargs["parse_progress_callback"](1, 2, "Song")
+            await kwargs["parse_progress_callback"]({"completed": 1, "total": 2, "current_title": "Song"})
 
         with patch.object(task_manager, "_download_urls_async", download):
             with self.assertRaises(asyncio.CancelledError):

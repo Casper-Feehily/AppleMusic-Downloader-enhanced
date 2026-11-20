@@ -222,7 +222,7 @@ separate `parsing` object, for example
 `{"completed": 98, "total": 335, "current_title": "I Still..."}`.
 `parsing.total` is `null` until the collection size is known. Parse counts reset
 for each input URL or child album and include tracks that could not be resolved. The existing
-`progress` object counts downloaded files only. Terminal task `status` takes
+`progress` object counts downloaded files only. The `parsing` field is `null` outside active metadata resolution. Terminal task `status` takes
 precedence over the last active phase.
 
 ---
@@ -276,8 +276,11 @@ Connect after submitting a task via `POST /api/tasks`.
 // Metadata parsing (separate from file download progress)
 {"type": "parsing", "phase": "parsing", "parsing": {"completed": 98, "total": 335, "current_title": "I Still..."}}
 
+// Metadata parsing finished
+{"type": "parsing", "phase": "parsing", "parsing": null}
+
 // Status change
-{"type": "status", "status": "completed", "message": "Done"}
+{"type": "status", "status": "completed", "message": "Done", "parsing": null}
 
 // Error
 {"type": "error", "message": "Task not found"}

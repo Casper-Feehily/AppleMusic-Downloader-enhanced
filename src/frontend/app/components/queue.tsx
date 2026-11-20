@@ -114,8 +114,8 @@ function TaskRow({
   const [copied, setCopied] = useState(false);
   const progress = task.progress as Record<string, number>;
   const { completed = 0, total = 0, percent } = progress;
-  const isParsing = task.status === "running" && task.phase === "parsing";
-  const parsing = task.parsing;
+  const parsing = task.status === "running" ? task.parsing : null;
+  const isParsing = Boolean(parsing);
   const parsed = parsing?.completed ?? 0;
   const parseTotal = parsing?.total ?? 0;
   const pct = task.status === "completed"

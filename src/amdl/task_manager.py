@@ -20,7 +20,11 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 from fastapi import WebSocket
+
+if TYPE_CHECKING:
+    from amdl.core_downloader import PlaylistParseProgress
 
 # Lazy import: core_downloader does a Python version guard at import time.
 try:
@@ -71,7 +75,7 @@ class DownloadTask:
         self.status = TaskStatus.PENDING
         self.progress: tuple[int, int] = (0, 0)  # (completed, total)
         self.phase: str = "pending"
-        self.parsing: dict = {"completed": 0, "total": None, "current_title": ""}
+        self.parsing: PlaylistParseProgress | None = None
         self.error_count: int = 0
         self.message: str = ""
         self.logs: list[str] = []
@@ -98,7 +102,7 @@ class DownloadTask:
             "id": self.id,
             "status": self.status.value,
             "phase": self.phase,
-            "parsing": self.parsing.copy(),
+            "parsing": self.parsing,
             "progress": {
                 "completed": completed,
                 "total": total,
@@ -280,18 +284,22 @@ class TaskManager:
                 raise asyncio.CancelledError("Task cancelled")
             task.progress = (completed, total)
             task.phase = "downloading"
+            task.parsing = None
             task.updated_at = datetime.now(timezone.utc).isoformat()
             await self._broadcast_progress(task_id, completed, total)
 
-        async def on_parse_progress(completed: int, total: int | None, title: str):
+        async def on_parse_progress(parsing: PlaylistParseProgress | None):
             if task.cancelled:
                 raise asyncio.CancelledError("Task cancelled")
-            task.phase = "parsing"
-            task.parsing = {"completed": completed, "total": total, "current_title": title}
+            if parsing is None and task.parsing is None:
+                return
+            if parsing is not None:
+                task.phase = "parsing"
+            task.parsing = parsing
             task.updated_at = datetime.now(timezone.utc).isoformat()
             await self._send_to_subscribers(task, {
                 "type": "parsing", "task_id": task_id,
-                "phase": task.phase, "parsing": task.parsing.copy(),
+                "phase": task.phase, "parsing": task.parsing,
                 "updated_at": task.updated_at,
             })
 
@@ -401,13 +409,15 @@ class TaskManager:
         await self._send_to_subscribers(task, message)
 
     async def _broadcast_status(self, task: DownloadTask):
+        if task.status != TaskStatus.RUNNING:
+            task.parsing = None
         completed, total = task.progress[0], task.progress[1]
         message = {
             "type": "status",
             "task_id": task.id,
             "status": task.status.value,
             "phase": task.phase,
-            "parsing": task.parsing.copy(),
+            "parsing": task.parsing,
             "progress": {
                 "completed": completed,
                 "total": total,
@@ -450,7 +460,7 @@ class TaskManager:
                 "task_id": task_id,
                 "status": task.status.value,
                 "phase": task.phase,
-                "parsing": task.parsing.copy(),
+                "parsing": task.parsing,
                 "progress": {
                     "completed": completed,
                     "total": total,

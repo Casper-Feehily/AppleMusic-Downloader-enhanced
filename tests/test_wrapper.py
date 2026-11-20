@@ -354,13 +354,14 @@ class CoreWrapperTests(unittest.IsolatedAsyncioTestCase):
         errors, files, _ = await self._run_wrapper_tag_case(
             include_partial=True,
             progress_callback=lambda *update: downloads.append(update),
-            parse_progress_callback=lambda *update: parses.append(update),
+            parse_progress_callback=parses.append,
         )
         self.assertEqual(errors, 0)
         self.assertEqual(len(files), 1)
         self.assertEqual(downloads, [(0, 1), (1, 1)])
-        self.assertEqual(parses[0], (0, None, ""))
-        self.assertEqual(parses[-1][0], 1)
+        self.assertEqual(parses[0], {"completed": 0, "total": None, "current_title": ""})
+        self.assertEqual(parses[-2]["completed"], 1)
+        self.assertIsNone(parses[-1])
 
     def test_gamdl_debug_logs_are_capped_at_info(self) -> None:
         sentinel = object()

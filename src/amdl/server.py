@@ -374,8 +374,8 @@ class TaskInfoResponse(BaseModel):
     id: str
     status: str
     phase: str = "pending"
-    parsing: dict = Field(default_factory=dict)
     progress: dict
+    parsing: dict | None = None
     error_count: int
     message: str
     logs: list[str] = Field(default_factory=list)

@@ -41,7 +41,7 @@ export interface TaskInfo {
     completed: number;
     total: number | null;
     current_title: string;
-  };
+  } | null;
   progress: Record<string, unknown>;
   error_count: number;
   message: string;

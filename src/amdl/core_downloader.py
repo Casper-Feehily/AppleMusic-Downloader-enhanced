@@ -14,7 +14,7 @@ import tempfile
 import threading
 import traceback
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TypedDict
 from urllib.parse import parse_qs, urlparse
 from xml.dom import Node, minidom
 
@@ -67,7 +67,13 @@ from gamdl.interface.types import Cover, DecryptionKeyAv, StreamInfoAv
 from amdl.existing_library import ExistingLibrary, write_existing_playlist_entry
 
 LogCallback = Callable[[str], None]
-ParseProgressCallback = Callable[[int, int | None, str], object]
+class PlaylistParseProgress(TypedDict):
+    completed: int
+    total: int | None
+    current_title: str
+
+
+ParseProgressCallback = Callable[[PlaylistParseProgress | None], object]
 _PUBLICATION_LOCK = threading.Lock()
 
 
@@ -78,10 +84,11 @@ async def _parse_items_with_progress(dl, url: str, log, callback=None):
     collection_types = {"playlists", "library-playlists", "albums", "library-albums", "artists"}
     # Retain objects so streaming CLI consumption cannot reuse a resolved id.
     resolved_media: dict[int, object] = {}
+    resolved_playlist_positions: set[int] = set()
 
     async def report(title: str = ""):
         if callback:
-            result = callback(completed, total, title)
+            result = callback({"completed": completed, "total": total, "current_title": title})
             if asyncio.iscoroutine(result):
                 await result
 
@@ -95,6 +102,7 @@ async def _parse_items_with_progress(dl, url: str, log, callback=None):
             if tracks is not None:
                 completed = 0
                 resolved_media.clear()
+                resolved_playlist_positions.clear()
                 total = len(tracks)
                 log.info(f"Found {total} tracks; resolving metadata")
                 await report()
@@ -102,11 +110,21 @@ async def _parse_items_with_progress(dl, url: str, log, callback=None):
             if total is None:
                 total = getattr(media, "total", None) or None
             title = metadata.get("attributes", {}).get("name", "?")
-            if media.partial:
+            position = getattr(media, "index", None) if getattr(media, "playlist_metadata", None) else None
+            already_resolved = (
+                position in resolved_playlist_positions if position is not None else id(media) in resolved_media
+            )
+            if already_resolved:
+                yield item
+                continue
+            if media.partial and not getattr(media, "error", None):
                 log.info(f'Resolving track {completed + 1}/{total if total is not None else "?"}: "{title}"')
                 await report(title)
-            elif id(media) not in resolved_media:
-                resolved_media[id(media)] = media
+            else:
+                if position is None:
+                    resolved_media[id(media)] = media
+                else:
+                    resolved_playlist_positions.add(position)
                 completed += 1
                 suffix = " (unavailable)" if media.error else ""
                 log.info(f'Parsed {completed}/{total if total is not None else "?"}: "{title}"{suffix}')
@@ -1033,6 +1051,10 @@ async def _download_urls_async(
         except Exception as e:
             errors += 1
             log.error('Failed to parse "%s": %s', url, e, exc_info=not no_exceptions)
+        if parse_progress_callback:
+            result = parse_progress_callback(None)
+            if asyncio.iscoroutine(result):
+                await result
 
     total = sum(
         1 for item in items
