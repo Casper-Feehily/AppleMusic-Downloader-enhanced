@@ -103,10 +103,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos
+          - os: macos-arm64
             runner: macos-15
             artifact: AppleMusicDownloader-macos-arm64
             artifact_path: dist/AppleMusicDownloader-macos-arm64.dmg
+          - os: macos-x64
+            runner: macos-26-intel
+            artifact: AppleMusicDownloader-macos-x64
+            artifact_path: dist/AppleMusicDownloader-macos-x64.dmg
           - os: windows
             runner: windows-latest
             artifact: AppleMusicDownloader-windows-x64
@@ -134,13 +138,14 @@ jobs:
         run: bash scripts/build.sh "$BUILD_OS"
 
       - name: Verify bundled FFmpeg (macOS)
-        if: matrix.os == 'macos'
+        if: startsWith(matrix.os, 'macos-')
+        env:
+          APP_BUNDLE: dist/${{ matrix.artifact }}.app
         run: |
-          test -x dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffmpeg
-          test -f dist/AppleMusicDownloader-macos-arm64.app/Contents/Resources/third_party/ffmpeg/LICENSE
-          dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffmpeg -version
-          dist/AppleMusicDownloader-macos-arm64.app/Contents/Frameworks/bin/ffprobe -version
-          codesign --verify --deep --strict dist/AppleMusicDownloader-macos-arm64.app
+          test -f "$APP_BUNDLE/Contents/Resources/third_party/ffmpeg/LICENSE"
+          "$APP_BUNDLE/Contents/Frameworks/bin/ffmpeg" -version
+          "$APP_BUNDLE/Contents/Frameworks/bin/ffprobe" -version
+          codesign --verify --deep --strict "$APP_BUNDLE"
 
       - name: Run full platform regression suite (including native update helpers)
         run: python -m unittest discover -s tests -v
@@ -274,7 +279,7 @@ jobs:
           name: "AppleMusic Downloader ${{ github.ref_name }}"
           generate_release_notes: true
           body: |
-            Windows and Apple Silicon macOS installers include FFmpeg from [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1). License and build information are included under `third_party/ffmpeg/`; see [FFmpeg Legal](https://ffmpeg.org/legal.html).
+            Windows and macOS installers include FFmpeg and ffprobe from [eugeneware/ffmpeg-static b6.1.1](https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1). License and build information are included under `third_party/ffmpeg/`; see [FFmpeg Legal](https://ffmpeg.org/legal.html).
           draft: true
           prerelease: false
           files: |

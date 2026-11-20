@@ -1,15 +1,33 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
 # AppleMusic Downloader — PyInstaller build script
-# Usage: bash scripts/build.sh <macos|windows|linux>
+# Usage: bash scripts/build.sh <macos|macos-arm64|macos-x64|windows|linux>
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 PLATFORM="${1:-}"
 if [[ -z "$PLATFORM" ]]; then
-  echo "Usage: $0 <macos|windows|linux>"
+  echo "Usage: $0 <macos|macos-arm64|macos-x64|windows|linux>"
   exit 1
 fi
+
+MAC_ARCH=""
+case "$PLATFORM" in
+  macos|macos-arm64|macos-x64)
+    case "$(uname -m)" in
+      arm64) MAC_ARCH="arm64" ;;
+      x86_64) MAC_ARCH="x64" ;;
+      *) echo "Unsupported macOS architecture: $(uname -m)" >&2; exit 1 ;;
+    esac
+    if [[ "$PLATFORM" != "macos" && "$PLATFORM" != "macos-$MAC_ARCH" ]]; then
+      echo "$PLATFORM requires a matching native host (got macos-$MAC_ARCH)" >&2
+      exit 1
+    fi
+    PLATFORM="macos"
+    ;;
+  windows|linux) ;;
+  *) echo "Unsupported platform: $PLATFORM" >&2; exit 1 ;;
+esac
 
 # On Windows (Git Bash), pwd returns MSYS path like /d/a/... which
 # PyInstaller (Python) cannot resolve.  Use pwd -W for native paths.
@@ -53,17 +71,27 @@ download_verified() {
 echo ">>> Downloading pinned FFmpeg $FFMPEG_VERSION for $PLATFORM..."
 case "$PLATFORM" in
   macos)
-    FFMPEG_ASSET="ffmpeg-darwin-arm64"
-    FFMPEG_SOURCE="$ROOT_DIR/bin/ffmpeg-darwin-arm64.unsigned"
+    FFMPEG_ASSET="ffmpeg-darwin-$MAC_ARCH"
+    FFMPEG_SOURCE="$ROOT_DIR/bin/$FFMPEG_ASSET.unsigned"
     FFMPEG_DEST="$ROOT_DIR/bin/ffmpeg"
-    FFPROBE_SOURCE="$ROOT_DIR/bin/ffprobe-darwin-arm64.unsigned"
+    FFPROBE_SOURCE="$ROOT_DIR/bin/ffprobe-darwin-$MAC_ARCH.unsigned"
     FFPROBE_DEST="$ROOT_DIR/bin/ffprobe"
-    FFPROBE_SHA="bb2db6f5d8cef919da12fbf592119a987202a8c060a886f3cab091f9cab90b64"
-    FFMPEG_SHA="a90e3db6a3fd35f6074b013f948b1aa45b31c6375489d39e572bea3f18336584"
-    LICENSE_ASSET="darwin-arm64.LICENSE"
-    LICENSE_SHA="cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2"
-    README_ASSET="darwin-arm64.README"
-    README_SHA="05ba4b92c96605434b1aaae3eedf5a2c280c9607bf78ffca9a5b536d9af2dc6a"
+    LICENSE_ASSET="darwin-$MAC_ARCH.LICENSE"
+    README_ASSET="darwin-$MAC_ARCH.README"
+    case "$MAC_ARCH" in
+      arm64)
+        FFMPEG_SHA="a90e3db6a3fd35f6074b013f948b1aa45b31c6375489d39e572bea3f18336584"
+        FFPROBE_SHA="bb2db6f5d8cef919da12fbf592119a987202a8c060a886f3cab091f9cab90b64"
+        LICENSE_SHA="cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2"
+        README_SHA="05ba4b92c96605434b1aaae3eedf5a2c280c9607bf78ffca9a5b536d9af2dc6a"
+        ;;
+      x64)
+        FFMPEG_SHA="ebdddc936f61e14049a2d4b549a412b8a40deeff6540e58a9f2a2da9e6b18894"
+        FFPROBE_SHA="fa3add0ce901f7241abe0dfc0155d958fc834aca3f8ce61f87cc712ae669c1e0"
+        LICENSE_SHA="2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        README_SHA="e88a0325f8e5b75210355e37341824f074d3cd82def2125be54c914b62848a36"
+        ;;
+    esac
     ;;
   windows)
     FFMPEG_ASSET="ffmpeg-win32-x64"
@@ -123,26 +151,25 @@ case "$PLATFORM" in
     fi
     ;;
   macos)
-    DEST="$BIN_DIR/N_m3u8DL-RE"
+    DEST="$BIN_DIR/N_m3u8DL-RE-$MAC_ARCH"
     if [[ ! -f "$DEST" ]]; then
-      # R2 only has Windows exe — macOS goes straight to GitHub
-      GHLATEST=$(curl -sL https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest)
-      GHURL=$(echo "$GHLATEST" | grep browser_download_url | grep -E 'macos-(arm64|x64)\.tar\.gz' | head -1 | cut -d'"' -f4)
-      if [[ -n "$GHURL" ]]; then
-        curl -#fL "$GHURL" -o "/tmp/N_m3u8DL-RE.tar.gz" 2>&1
-      fi
-      if [[ -f "/tmp/N_m3u8DL-RE.tar.gz" ]]; then
-        tar xzf "/tmp/N_m3u8DL-RE.tar.gz" -C "$BIN_DIR" 2>/dev/null
-        rm -f "/tmp/N_m3u8DL-RE.tar.gz"
-        # GitHub tar is N_m3u8DL-RE/N_m3u8DL-RE (subdir) — move file up
-        if [[ -f "$BIN_DIR/N_m3u8DL-RE/N_m3u8DL-RE" ]]; then
-          mv "$BIN_DIR/N_m3u8DL-RE/N_m3u8DL-RE" "$DEST"
-          rmdir "$BIN_DIR/N_m3u8DL-RE" 2>/dev/null || true
+      N_M3U8_TMP=$(mktemp -d)
+      if [[ -d "$N_M3U8_TMP" ]]; then
+        GHLATEST=$(curl -fsSL https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest)
+        GHURL=$(echo "$GHLATEST" | grep browser_download_url | grep -F "macos-$MAC_ARCH.tar.gz" | head -1 | cut -d'"' -f4)
+        if [[ -n "$GHURL" ]] && curl -#fL "$GHURL" -o "$N_M3U8_TMP/download.tar.gz"; then
+          if tar xzf "$N_M3U8_TMP/download.tar.gz" -C "$N_M3U8_TMP"; then
+            N_M3U8_BINARY=$(find "$N_M3U8_TMP" -type f -name N_m3u8DL-RE -print -quit)
+            if [[ -n "$N_M3U8_BINARY" ]]; then
+              mv "$N_M3U8_BINARY" "$DEST"
+            fi
+          fi
         fi
+        rm -rf "$N_M3U8_TMP"
       fi
     fi
-    if [[ -f "$DEST" ]]; then
-      chmod +x "$DEST"
+    if [[ -f "$DEST" ]] && cp "$DEST" "$BIN_DIR/N_m3u8DL-RE"; then
+      chmod +x "$BIN_DIR/N_m3u8DL-RE"
       BINARY_FLAGS+=("bin/N_m3u8DL-RE")
     fi
     ;;
@@ -271,15 +298,20 @@ case "$PLATFORM" in
   macos)
     # onedir --windowed 产出 dist/AppleMusicDownloader.app
     SRC_BUNDLE="$ROOT_DIR/dist/$APP_NAME.app"
-    DST_BUNDLE="$DIST_DIR/${APP_NAME}-macos-arm64.app"
-    DMG_PATH="$DIST_DIR/${APP_NAME}-macos-arm64.dmg"
+    DST_BUNDLE="$DIST_DIR/${APP_NAME}-macos-${MAC_ARCH}.app"
+    DMG_PATH="$DIST_DIR/${APP_NAME}-macos-${MAC_ARCH}.dmg"
     if [[ -d "$SRC_BUNDLE" ]]; then
       rm -rf "$DST_BUNDLE"
       mv "$SRC_BUNDLE" "$DST_BUNDLE"
+      plist="$DST_BUNDLE/Contents/Info.plist"
+      APP_VERSION="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$ROOT_DIR/src/amdl/__init__.py")"
+      /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$plist" 2>/dev/null ||
+        /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $APP_VERSION" "$plist"
+      /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$plist" 2>/dev/null ||
+        /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $APP_VERSION" "$plist"
       # 设置 macOS 图标（.icns）
       if [[ -f "$ROOT_DIR/icon.icns" ]]; then
         cp "$ROOT_DIR/icon.icns" "$DST_BUNDLE/Contents/Resources/"
-        plist="$DST_BUNDLE/Contents/Info.plist"
         /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile icon.icns" "$plist" 2>/dev/null || true
       fi
       # 清除框架签名冲突（Anaconda Python 自带 Team ID 跟 ad-hoc 冲突）
